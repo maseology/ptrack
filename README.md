@@ -8,6 +8,7 @@ A generalized particle tracking and flux-field analysis suite, designed for unst
 
 ### work in progress:
 
+- output to *.vtk
 - FlowSource volumetric flow tracking (Foley and Black, 2017)
 - model output conversion routines
 - additional processing:
