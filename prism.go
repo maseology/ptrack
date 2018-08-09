@@ -7,7 +7,13 @@ import (
 	"github.com/maseology/mmaths"
 )
 
-// Prism struct
+// PrismSet struct represents the model domain
+type PrismSet struct {
+	P    map[int]Prism
+	Conn map[int][]int
+}
+
+// Prism struct represents a singular model prism
 type Prism struct {
 	Z                        []complex128
 	Top, Bot, A, Bn, Por, Tn float64
