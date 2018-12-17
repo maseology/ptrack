@@ -36,7 +36,7 @@ func main() {
 	// Qwell := 0.
 	// prt := pt.Particle{I: 0, X: 0.48, Y: -1.0, Z: 0., T: 0.}
 
-	// ex. 4.3
+	// // ex. 4.3
 	// zj := []complex128{-.5 - 0.5i, -.5 + .5i, 0.5 + .5i, 0.5 - .5i} // vertex coordinate (clockwise order)
 	// ztop := 1.0
 	// zbot := 0.0
@@ -65,10 +65,10 @@ func main() {
 	zw := 250. + 52.5i                         // complex well coordinate
 	qj := []float64{-25., -25., 25., 15., 20.} // time-averaged flow rates through cell sides (Q_i) [L3/T]
 	// qj := []float64{7., -7., 4., 3., -7.} // time-averaged flow rates through cell sides (Q_i) [L3/T]
-	Qvert := -30. //10. //
+	Qvert := -30. // positive up; negative down
 	Qtop := 0.
 	Qbot := -Qvert // Qvert = Qtop-Qbot
-	Qwell := -40.  //0.    //  negative for pumping, positive for injecting (Q_well)
+	Qwell := -40.  //  negative for pumping, positive for injecting (Q_well)
 	prt := pt.Particle{I: 0, X: 248.4, Y: 54.1, Z: 0., T: 0.}
 
 	//////////////////////////////////////////////////////////////

@@ -40,7 +40,8 @@ func (w *WatMethSoln) New(p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwe
 	w.ql = wbal // cumulative lateral inflows
 	wbal += Qwell - Qvert
 	if math.Abs(wbal) > mingtzero { // step 1: check mass balance (eq 3.7)
-		log.Panicf("cell mass-balance error: %v\n", wbal)
+		fmt.Printf("Qwell: %6.3f  Qbot: %6.3f  Qtop: %6.3f  Qlat %6.3f\n", Qwell, Qbot, Qtop, Qj)
+		log.Fatalf("cell mass-balance error: %v\n", wbal)
 	}
 	w.zc /= complex(float64(w.nf), 0.) // cell centroid
 	w.qv = Qvert / p.A                 // Qvert = Qtop-Qbot, positive up, negative down

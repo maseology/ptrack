@@ -9,7 +9,7 @@ import (
 
 // PrismSet struct represents the model domain
 type PrismSet struct {
-	P    map[int]Prism
+	P    map[int]*Prism
 	Conn map[int][]int
 }
 
@@ -43,6 +43,16 @@ func (q *Prism) computeArea() {
 	}
 }
 
+// CentroidXY returns the complex-coordinates of the prism centroid
+func (q *Prism) CentroidXY() complex128 {
+	sc, c := 0.+0.i, 0
+	for _, v := range q.Z {
+		sc += v
+		c++
+	}
+	return sc / complex(float64(c), 0.)
+}
+
 // ExtentsXY returns the XY-extents of the prism
 func (q *Prism) ExtentsXY() (float64, float64, float64, float64) {
 	yn, yx, xn, xx := math.MaxFloat64, -math.MaxFloat64, math.MaxFloat64, -math.MaxFloat64
@@ -57,12 +67,12 @@ func (q *Prism) ExtentsXY() (float64, float64, float64, float64) {
 
 // ContainsXY returns true if the given (x,y) coordinates are contained by the prism planform bounds
 func (q *Prism) ContainsXY(x, y float64) bool {
-	return mmaths.PnPolyC(q.Z, complex(x, y))
+	return mmaths.PnPolyC(q.Z, complex(x, y), true)
 }
 
 // Contains returns true if the given particle is contained by the prism bounds
 func (q *Prism) Contains(p *Particle) bool {
-	if !mmaths.PnPolyC(q.Z, complex(p.X, p.Y)) {
+	if !mmaths.PnPolyC(q.Z, complex(p.X, p.Y), true) {
 		return false
 	}
 	return p.Z <= q.Top && p.Z >= q.Bot
@@ -88,7 +98,8 @@ func (q *Prism) Intersection(p *Particle, lastpos []float64) int {
 	}
 	if p.Z <= q.Top && p.Z >= q.Bot { // still contained vertically
 		if math.IsNaN(f) {
-			panic("Prism.Intersection error: particle has not appeared to exit prism.")
+			return -9999
+			// panic("Prism.Intersection error: particle has not appeared to exit prism.")
 		}
 	} else { // possibly exited from a vertical face
 		var f2 float64
@@ -109,7 +120,7 @@ func (q *Prism) Intersection(p *Particle, lastpos []float64) int {
 			ecode = ec2
 		}
 	}
-	// f *= 1.00001 // slighly over project particle to ensure it's found in the next cell
+	f *= 1.0001 // slighly over project particle to ensure it's found in the next cell
 	p.X = lastpos[0] + f*(p.X-lastpos[0])
 	p.Y = lastpos[1] + f*(p.Y-lastpos[1])
 	p.Z = lastpos[2] + f*(p.Z-lastpos[2])
