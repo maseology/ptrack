@@ -8,7 +8,6 @@ import (
 
 	"github.com/maseology/mmaths"
 	"github.com/maseology/mmio"
-	plt "github.com/maseology/mmplt"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -267,11 +266,11 @@ func (w *WatMethSoln) plotPerimeterFlux(zj []complex128, qj, lj []float64, p flo
 	m["normal flux"] = qn
 	m["specified normal flux"] = qi
 
-	plt.Line("perimeterFlux.png", sCtrl, m)
+	mmio.Line("perimeterFlux.png", sCtrl, m, 12.)
 }
 
 func (w *WatMethSoln) saveControlPoints(zCtrl []complex128) {
-	txtw := mmio.NewTXTwriter("controlpoints.bln")
+	txtw, _ := mmio.NewTXTwriter("controlpoints.bln")
 	for i := 0; i < w.m; i++ {
 		zCtrlGlobal := zCtrl[i]*w.r + w.zc
 		txtw.WriteLine("1")
@@ -283,7 +282,7 @@ func (w *WatMethSoln) saveControlPoints(zCtrl []complex128) {
 // ExportComplexPotentialField creates a *.csv file containing the distribution of the resulting complex potential field for viewing
 func (w *WatMethSoln) ExportComplexPotentialField(q *Prism, d int) {
 	yn, yx, xn, xx := q.ExtentsXY()
-	txtw := mmio.NewTXTwriter("cell.bln")
+	txtw, _ := mmio.NewTXTwriter("cell.bln")
 	txtw.WriteLine(fmt.Sprint(len(q.Z) + 1))
 	for _, v := range q.Z {
 		txtw.WriteLine(fmt.Sprintf("%v %v", real(v), imag(v)))

@@ -98,7 +98,7 @@ func main() {
 }
 
 func printPathline(p [][]float64) {
-	txtw := mmio.NewTXTwriter("pathline.bln")
+	txtw, _ := mmio.NewTXTwriter("pathline.bln")
 	txtw.WriteLine(fmt.Sprint(len(p)))
 	for _, v := range p {
 		txtw.WriteLine(fmt.Sprintf("%v %v %v %v", v[0], v[1], v[2], v[3]))
