@@ -4,7 +4,7 @@ import "math"
 
 // RungeKutta particle pathline integration scheme
 type RungeKutta struct {
-	Dt, Ds   float64
+	Dt, Ds   float64 // Ds only needed when in Adaptive mode
 	Adaptive bool
 }
 

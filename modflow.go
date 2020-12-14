@@ -17,7 +17,12 @@ func ReadMODFLOW(fprfx string) Domain {
 	var d Domain
 	pset, jaxr := readGRB(fmt.Sprintf("%s.dis.grb", fprfx))
 	pflx := readCBC(fmt.Sprintf("%s.cbc", fprfx), jaxr)
-	fmt.Println(readDependentVariable(fmt.Sprintf("%s.hds", fprfx)))
+	func() {
+		for m := range readDependentVariable(fmt.Sprintf("%s.hds", fprfx)) {
+			fmt.Printf("  DV: %s\n", m)
+		}
+	}()
+	// fmt.Println(readDependentVariable(fmt.Sprintf("%s.hds", fprfx)))
 	d.New(pset, pflx)
 	return d
 }

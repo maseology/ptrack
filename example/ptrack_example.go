@@ -87,7 +87,7 @@ func main() {
 	// pl := pt.EulerSpace{Ds: 0.001}
 	// pl := pt.EulerTime{Dt: 0.0001}
 
-	ec, pathline := pt.TrackToExit(&prt, &q, &wm, &pl, zw)
+	ec, pathline := pt.TrackToExit(&prt, &q, &wm, &pl, zw, 0)
 	// for i, v := range pathline {
 	// 	fmt.Println(i, v)
 	// }

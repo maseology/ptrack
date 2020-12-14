@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/cmplx"
 
-	"github.com/maseology/mmaths"
 	"github.com/maseology/mmio"
 	"gonum.org/v1/gonum/mat"
 )
@@ -256,7 +255,7 @@ func (w *WatMethSoln) plotPerimeterFlux(zj []complex128, qj, lj []float64, p flo
 		qn[i] = (si[ip] - si[im]) / 2. / sc // qn=dPsi/ds
 		er += math.Abs(qi[i] - qn[i])
 	}
-	er /= float64(b) * mmaths.SliceMax(qi)
+	er /= float64(b) * sliceMax(qi)
 
 	fmt.Printf("average flow error: %6.4f\n", er)
 
@@ -267,6 +266,14 @@ func (w *WatMethSoln) plotPerimeterFlux(zj []complex128, qj, lj []float64, p flo
 	m["specified normal flux"] = qi
 
 	mmio.Line("perimeterFlux.png", sCtrl, m, 12.)
+}
+
+func sliceMax(s []float64) float64 {
+	x := -math.MaxFloat64
+	for _, v := range s {
+		x = math.Max(x, v)
+	}
+	return x
 }
 
 func (w *WatMethSoln) saveControlPoints(zCtrl []complex128) {

@@ -10,10 +10,13 @@ import (
 	"time"
 )
 
-// ExportVTKpathline saves particle tracking results as a *.vtk file for visualization.
-func ExportVTKpathline(filepath string, pl [][]float64) {
+// ExportVTKpathlines saves particle tracking results as a *.vtk file for visualization.
+func ExportVTKpathlines(filepath string, pl [][][]float64) {
 	// write to data buffer
-	buf, endi, np := new(bytes.Buffer), binary.BigEndian, len(pl)
+	buf, endi, np := new(bytes.Buffer), binary.BigEndian, 0
+	for _, a := range pl {
+		np += len(a)
+	}
 
 	binary.Write(buf, endi, []byte("# vtk DataFile Version 3.0\n"))
 	binary.Write(buf, endi, []byte(fmt.Sprintf("Pathline: %d vertices, %s\n", np, time.Now().Format("2006-01-02 15:04:05"))))
@@ -21,27 +24,44 @@ func ExportVTKpathline(filepath string, pl [][]float64) {
 	binary.Write(buf, endi, []byte("DATASET UNSTRUCTURED_GRID\n"))
 
 	binary.Write(buf, endi, []byte(fmt.Sprintf("POINTS %d float\n", np)))
-	for i := 0; i < np; i++ {
-		binary.Write(buf, endi, float32(pl[i][0]))
-		binary.Write(buf, endi, float32(pl[i][1]))
-		binary.Write(buf, endi, float32(pl[i][2]))
+	for _, a := range pl {
+		for _, aa := range a {
+			binary.Write(buf, endi, float32(aa[0]))
+			binary.Write(buf, endi, float32(aa[1]))
+			binary.Write(buf, endi, float32(aa[2]))
+		}
 	}
 
-	binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELLS %d %d\n", 1, np+1)))
-	binary.Write(buf, endi, int32(np))
-	for i := 0; i < np; i++ {
-		binary.Write(buf, endi, int32(i))
+	binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELLS %d %d\n", len(pl), np+len(pl))))
+	ii := 0
+	for _, a := range pl {
+		binary.Write(buf, endi, int32(len(a)))
+		for i := range a {
+			binary.Write(buf, endi, int32(ii+i))
+		}
+		ii += len(a)
 	}
 
-	binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_TYPES %d\n", 1)))
-	binary.Write(buf, endi, int32(4)) // VTK_POLY_LINE
+	binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_TYPES %d\n", len(pl))))
+	for i := 0; i < len(pl); i++ {
+		binary.Write(buf, endi, int32(4)) // VTK_POLY_LINE
+	}
 
+	// // // cell index
+	// // binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_DATA %d\n", np)))
+	// // binary.Write(buf, endi, []byte(fmt.Sprintf("SCALARS time int\n")))
+	// // binary.Write(buf, endi, []byte(fmt.Sprintf("LOOKUP_TABLE default\n")))
+	// // for k, a := range pl {
+	// // 	for i := 0; i < len(a); i++ {
+	// // 		binary.Write(buf, endi, k)
+	// // 	}
+	// // }
 	// // cell index
-	// binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_DATA %d\n", np)))
-	// binary.Write(buf, endi, []byte(fmt.Sprintf("SCALARS time float\n")))
+	// binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_DATA %d\n", len(pl))))
+	// binary.Write(buf, endi, []byte(fmt.Sprintf("SCALARS time int\n")))
 	// binary.Write(buf, endi, []byte(fmt.Sprintf("LOOKUP_TABLE default\n")))
-	// for i := 0; i < np; i++ {
-	// 	binary.Write(buf, endi, float32(pl[i][3]))
+	// for i := 0; i < len(pl); i++ {
+	// 	binary.Write(buf, endi, i)
 	// }
 
 	// write to file
@@ -49,6 +69,46 @@ func ExportVTKpathline(filepath string, pl [][]float64) {
 		log.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 }
+
+// // ExportVTKpathline saves particle tracking results as a *.vtk file for visualization.
+// func ExportVTKpathline(filepath string, pl [][]float64) {
+// 	// write to data buffer
+// 	buf, endi, np := new(bytes.Buffer), binary.BigEndian, len(pl)
+
+// 	binary.Write(buf, endi, []byte("# vtk DataFile Version 3.0\n"))
+// 	binary.Write(buf, endi, []byte(fmt.Sprintf("Pathline: %d vertices, %s\n", np, time.Now().Format("2006-01-02 15:04:05"))))
+// 	binary.Write(buf, endi, []byte("BINARY\n"))
+// 	binary.Write(buf, endi, []byte("DATASET UNSTRUCTURED_GRID\n"))
+
+// 	binary.Write(buf, endi, []byte(fmt.Sprintf("POINTS %d float\n", np)))
+// 	for i := 0; i < np; i++ {
+// 		binary.Write(buf, endi, float32(pl[i][0]))
+// 		binary.Write(buf, endi, float32(pl[i][1]))
+// 		binary.Write(buf, endi, float32(pl[i][2]))
+// 	}
+
+// 	binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELLS %d %d\n", 1, np+1)))
+// 	binary.Write(buf, endi, int32(np))
+// 	for i := 0; i < np; i++ {
+// 		binary.Write(buf, endi, int32(i))
+// 	}
+
+// 	binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_TYPES %d\n", 1)))
+// 	binary.Write(buf, endi, int32(4)) // VTK_POLY_LINE
+
+// 	// // cell index
+// 	// binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_DATA %d\n", np)))
+// 	// binary.Write(buf, endi, []byte(fmt.Sprintf("SCALARS time float\n")))
+// 	// binary.Write(buf, endi, []byte(fmt.Sprintf("LOOKUP_TABLE default\n")))
+// 	// for i := 0; i < np; i++ {
+// 	// 	binary.Write(buf, endi, float32(pl[i][3]))
+// 	// }
+
+// 	// write to file
+// 	if err := ioutil.WriteFile(filepath, buf.Bytes(), 0644); err != nil {
+// 		log.Fatalf("ioutil.WriteFile failed: %v", err)
+// 	}
+// }
 
 // ExportVTK saves particle tracking results as a *.vtk file for visualization.
 func ExportVTK(filepath string, d *Domain) {

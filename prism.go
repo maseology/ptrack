@@ -54,34 +54,36 @@ func (q *Prism) CentroidXY() complex128 {
 }
 
 // ExtentsXY returns the XY-extents of the prism
-func (q *Prism) ExtentsXY() (float64, float64, float64, float64) {
-	yn, yx, xn, xx := math.MaxFloat64, -math.MaxFloat64, math.MaxFloat64, -math.MaxFloat64
+func (q *Prism) ExtentsXY() (yn, yx, xn, xx float64) {
+	yn, yx, xn, xx = math.MaxFloat64, -math.MaxFloat64, math.MaxFloat64, -math.MaxFloat64
 	for _, v := range q.Z {
 		yn = math.Min(yn, imag(v))
 		yx = math.Max(yx, imag(v))
 		xn = math.Min(xn, real(v))
 		xx = math.Max(xx, real(v))
 	}
-	return yn, yx, xn, xx
+	return
 }
+
+const tol = 1e-10
 
 // ContainsXY returns true if the given (x,y) coordinates are contained by the prism planform bounds
 func (q *Prism) ContainsXY(x, y float64) bool {
-	return mmaths.PnPolyC(q.Z, complex(x, y), true)
+	return mmaths.PnPolyC(q.Z, complex(x, y), tol)
 }
 
 // Contains returns true if the given particle is contained by the prism bounds
 func (q *Prism) Contains(p *Particle) bool {
-	if !mmaths.PnPolyC(q.Z, complex(p.X, p.Y), true) {
+	if !mmaths.PnPolyC(q.Z, complex(p.X, p.Y), tol) {
 		return false
 	}
 	return p.Z <= q.Top && p.Z >= q.Bot
 }
 
-// ContainsVert returns true if the given particle is contained by the prism's vertical bounds
-func (q *Prism) ContainsVert(p *Particle) bool {
-	return p.Z <= q.Top && p.Z >= q.Bot
-}
+// // ContainsVert returns true if the given particle is contained by the prism's vertical bounds
+// func (q *Prism) ContainsVert(p *Particle) bool {
+// 	return p.Z <= q.Top && p.Z >= q.Bot
+// }
 
 // Intersection determines the particles exit point relative to its last position
 func (q *Prism) Intersection(p *Particle, lastpos []float64) int {
@@ -98,6 +100,7 @@ func (q *Prism) Intersection(p *Particle, lastpos []float64) int {
 	}
 	if p.Z <= q.Top && p.Z >= q.Bot { // still contained vertically
 		if math.IsNaN(f) {
+			fmt.Println(*p)
 			return -9999
 			// panic("Prism.Intersection error: particle has not appeared to exit prism.")
 		}
@@ -120,11 +123,11 @@ func (q *Prism) Intersection(p *Particle, lastpos []float64) int {
 			ecode = ec2
 		}
 	}
-	f *= 1.0001 // slighly over project particle to ensure it's found in the next cell
-	p.X = lastpos[0] + f*(p.X-lastpos[0])
-	p.Y = lastpos[1] + f*(p.Y-lastpos[1])
-	p.Z = lastpos[2] + f*(p.Z-lastpos[2])
-	p.T = lastpos[3] + f*(p.T-lastpos[3])
+	// f *= 1.0001 // slightly over project particle to ensure it's found in the following cell
+	// p.X = lastpos[0] + f*(p.X-lastpos[0])
+	// p.Y = lastpos[1] + f*(p.Y-lastpos[1])
+	// p.Z = lastpos[2] + f*(p.Z-lastpos[2])
+	// p.T = lastpos[3] + f*(p.T-lastpos[3])
 
 	return ecode
 	// exit code (ecode) - nf: number of lateral faces:
@@ -136,15 +139,30 @@ func (q *Prism) Intersection(p *Particle, lastpos []float64) int {
 }
 
 func intersection2D(x1, y1, x2, y2, x3, y3, x4, y4 float64) float64 {
-	// taken from LineSegment.Intersection2D
-	// first degree Bézier parameter
-	d := ((x1-x2)*(y3-y4) - (y1-y2)*(x3-x4))
-	t := ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4))
-	u := ((x1-x2)*(y1-y3) - (y1-y2)*(x1-x3))
-	t /= d
-	u /= -d
-	if t >= 0. && t <= 1. && u >= 0. && u <= 1. {
+
+	sx1 := x2 - x1
+	sy1 := y2 - y1
+	sx2 := x4 - x3
+	sy2 := y4 - y3
+
+	s := (-sy1*(x1-x3) + sx1*(y1-y3)) / (-sx2*sy1 + sx1*sy2)
+	t := (sx2*(y1-y3) - sy2*(x1-x3)) / (-sx2*sy1 + sx1*sy2)
+
+	if s >= 0 && s <= 1 && t >= 0 && t <= 1 {
+		// Collision detected
+		// return []float64{x1 + (t * sx1), y1 + (t * sy1)}
 		return t
 	}
-	return math.NaN() //line segments do not intersect
+
+	// // taken from LineSegment.Intersection2D
+	// // first degree Bézier parameter
+	// d := ((x1-x2)*(y3-y4) - (y1-y2)*(x3-x4))
+	// t := ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4))
+	// u := ((x1-x2)*(y1-y3) - (y1-y2)*(x1-x3))
+	// t /= d
+	// u /= -d
+	// if t >= 0. && t <= 1. && u >= 0. && u <= 1. {
+	// 	return t
+	// }
+	return math.NaN() // No collision/line segments do not intersect
 }

@@ -12,6 +12,8 @@
 *.out
 
 # other
+*.bak
+*.old
 /bak
 /doc
 /test
