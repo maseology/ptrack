@@ -43,7 +43,7 @@ func (q *Prism) computeArea() {
 	}
 }
 
-// CentroidXY returns the complex-coordinates of the prism centroid
+// CentroidXY returns the complex-coordinates (x,y)=(real,imag) of the prism centroid
 func (q *Prism) CentroidXY() complex128 {
 	sc, c := 0.+0.i, 0
 	for _, v := range q.Z {

@@ -6,11 +6,6 @@ import (
 	"math/cmplx"
 )
 
-const (
-	ds = 1.
-	dt = 1.
-)
-
 // Domain is a set of cells that constitute a model
 type Domain struct {
 	prsms map[int]*Prism

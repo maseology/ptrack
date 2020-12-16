@@ -10,7 +10,7 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-// WatMethSoln is a struct that contains a grid cell's internal flow field
+// WatMethSoln (The Waterloo Method Solution): is a struct that contains a grid cell's internal flow field
 type WatMethSoln struct {
 	aT, zwl        []complex128
 	zc, r          complex128
@@ -18,7 +18,7 @@ type WatMethSoln struct {
 	m, n, nf       int
 }
 
-// New WatMethSoln contructor
+// New WatMethSoln constructor
 func (w *WatMethSoln) New(p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwell float64, m, n int) {
 
 	if m < 2*n {
@@ -207,24 +207,6 @@ func (w *WatMethSoln) cmplxVelWell(zl complex128, wID int) complex128 {
 	return q
 }
 
-// PointVelocity returns the velocity vector for a given (x,y,z) coordinate
-func (w *WatMethSoln) PointVelocity(p *Particle, q *Prism, dbdt float64) (float64, float64, float64) {
-	// q.Bn: saturated thickness at beginning of time step at time q.Tn; dbdt: rate of change in saturated thickness
-	// set dbdt = 0. for steady-state cases
-	bl, bz := math.Min(q.Bn, q.Top-q.Bot), math.Min(q.Bn+(p.T-q.Tn)*dbdt, q.Top-q.Bot) // corrected saturated thickness for lateral and vertical computations
-	zl := (complex(p.X, p.Y) - w.zc) / w.r                                             // complex local coordinate
-	o := w.cmplxVelFlow(zl)
-	if w.qv != 0. {
-		o += w.cmplxVelVert(zl)
-	}
-	if w.qw != 0. {
-		o += w.cmplxVelWell(zl, 0)
-	}
-	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bl) / q.Por     // eq. 3.19 (steady-state case)
-	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bz) / q.Por         // eq. 3.18 (transient case)
-	return real(-o) / bl / q.Por, imag(o) / bl / q.Por, vz // eq. 3.17
-}
-
 func (w *WatMethSoln) plotPerimeterFlux(zj []complex128, qj, lj []float64, p float64, b int) {
 	// print perimeter fluxes for testing
 	sCtrl, qn, qi, hi, si := make([]float64, b), make([]float64, b), make([]float64, b), make([]float64, b), make([]float64, b)
@@ -322,4 +304,38 @@ func (w *WatMethSoln) ExportComplexPotentialField(q *Prism, d int) {
 		}
 	}
 	csvw.Close()
+}
+
+// PointVelocity returns the velocity vector for a given (x,y,z) coordinate. ** Set dbdt = 0. for steady-state cases
+func (w *WatMethSoln) PointVelocity(p *Particle, q *Prism, dbdt float64) (float64, float64, float64) {
+	// q.Bn: saturated thickness at beginning of time step at time q.Tn; dbdt: rate of change in saturated thickness
+	bl, bz := math.Min(q.Bn, q.Top-q.Bot), math.Min(q.Bn+(p.T-q.Tn)*dbdt, q.Top-q.Bot) // corrected saturated thickness for lateral and vertical computations
+	zl := (complex(p.X, p.Y) - w.zc) / w.r                                             // complex local coordinate
+	o := w.cmplxVelFlow(zl)
+	if cmplx.IsInf(o) {
+		print()
+	}
+	if w.qv != 0. {
+		o += w.cmplxVelVert(zl)
+		if cmplx.IsInf(o) {
+			print()
+		}
+	}
+	if w.qw != 0. && zl != 0 {
+		o += w.cmplxVelWell(zl, 0)
+		if cmplx.IsInf(o) {
+			print()
+		}
+	}
+	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bl) / q.Por     // eq. 3.19 (steady-state case)
+	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bz) / q.Por // eq. 3.18 (transient case)
+	vx := real(-o) / bl / q.Por
+	vy := imag(o) / bl / q.Por
+	if vx > 10000. {
+		if cmplx.IsInf(o) {
+			print()
+		}
+		print()
+	}
+	return vx, vy, vz // eq. 3.17
 }

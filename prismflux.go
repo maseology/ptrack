@@ -3,7 +3,7 @@ package ptrack
 // PrismFlux contains the flux data normal to prism faces
 type PrismFlux struct {
 	q  []float64 // left-up-right-down-bottom-top
-	qw float64   // source/sink (at cell centroid??)
+	qw float64   // source/sink/well (at cell centroid??)
 }
 
 // LatBotTop returns prism fluxes organized by lateral, top and bottom fluxes

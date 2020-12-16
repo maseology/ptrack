@@ -13,7 +13,7 @@ type ParticleTracker interface {
 
 // TrackToExit tracks particle to the exit point
 func TrackToExit(p *Particle, q *Prism, w VelocityFielder, pt ParticleTracker, zwell complex128, wellID int) (int, [][]float64) {
-	pcoll := [][]float64{p.State()}
+	pcoll, iswell := [][]float64{p.State()}, !cmplx.IsNaN(zwell)
 	wx, wy, exitcode := real(zwell), imag(zwell), 0
 	for {
 		pt.Track(p, q, w)
@@ -22,7 +22,7 @@ func TrackToExit(p *Particle, q *Prism, w VelocityFielder, pt ParticleTracker, z
 			exitcode = q.Intersection(p, pcoll[len(pcoll)-2])
 			break
 		}
-		if !cmplx.IsNaN(zwell) {
+		if iswell {
 			if wDist(wx, wy, p.X, p.Y) < wellTol {
 				// fmt.Println("particle exited at well")
 				exitcode = -wellID // currently defaulted to centroid wells id'd by their cellID
