@@ -6,7 +6,7 @@ import (
 
 const (
 	safetyFactor = .9
-	dtx          = 86400.
+	// dtx          = 864. // max timestep
 )
 
 // RungeKutta particle pathline integration scheme
@@ -39,26 +39,38 @@ func (rk *RungeKuttaAdaptive) Track(p *Particle, q *Prism, w VelocityFielder) {
 redo:
 	p0, p1 := *p, *p
 
-	// 2 half steps
-	trial(&p0, q, w, rk.Dt/2.)
-	trial(&p0, q, w, rk.Dt/2.)
 	// 1 full step
-	trial(&p1, q, w, rk.Dt)
+	if trial(&p1, q, w, rk.Dt) {
+		rk.Dt /= 2.
+		goto redo
+	}
+	// 2 half steps
+	if trial(&p0, q, w, rk.Dt/2.) {
+		rk.Dt /= 2.
+		goto redo
+	}
+	if trial(&p0, q, w, rk.Dt/2.) {
+		rk.Dt /= 2.
+		goto redo
+	}
 
 	dst := p0.Dist(&p1)
-	rk.Dt *= safetyFactor * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
-	if math.IsNaN(rk.Dt) {
-		print()
+	if dst == 0. {
+		rk.Dt *= 2.
+	} else {
+		// fmt.Print(".")
+		rk.Dt *= safetyFactor * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
 	}
 
 	if dst > rk.Ds {
+		// fmt.Print("|")
 		goto redo // time step too large, repeat calculation
 	}
 
-	if rk.Dt > dtx {
-		rk.Dt = dtx
-	}
-	// fmt.Printf(" dt: %15.5f\n", rk.Dt)
+	// if rk.Dt > dtx {
+	// 	rk.Dt = dtx
+	// }
+	// fmt.Printf(" dt: %15.5e\n", rk.Dt)
 
 	// update particle state
 	p.X = p0.X
@@ -67,22 +79,19 @@ redo:
 	p.T = p0.T
 }
 
-func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) {
+func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
 
-	if p.X > 6000. {
-		print()
+	if r, _ := w.Contains(p); r > rmax {
+		return true
 	}
 	vx, vy, vz := w.PointVelocity(p, q, 0.)
-	if vx < 0. {
-		print()
-	}
 	k1 := dt * vx
 	l1 := dt * vy
 	m1 := dt * vz
 
 	p2 := Particle{0, p.X + k1/2., p.Y + l1/2., p.Z + m1/2., p.T + dt/2.}
-	if p2.X > 6000. {
-		print()
+	if r, _ := w.Contains(&p2); r > rmax {
+		return true
 	}
 	vx, vy, vz = w.PointVelocity(&p2, q, 0.)
 	k2 := dt * vx
@@ -90,8 +99,8 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) {
 	m2 := dt * vz
 
 	p3 := Particle{0, p.X + k2/2., p.Y + l2/2., p.Z + m2/2., p.T + dt/2.}
-	if p3.X > 6000. {
-		print()
+	if r, _ := w.Contains(&p3); r > rmax {
+		return true
 	}
 	vx, vy, vz = w.PointVelocity(&p3, q, 0.)
 	k3 := dt * vx
@@ -99,8 +108,8 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) {
 	m3 := dt * vz
 
 	p4 := Particle{0, p.X + k3, p.Y + l3, p.Z + m3, p.T + dt}
-	if p4.X > 6000. {
-		print()
+	if r, _ := w.Contains(&p4); r > rmax {
+		return true
 	}
 	vx, vy, vz = w.PointVelocity(&p4, q, 0.)
 	k4 := dt * vx
@@ -112,4 +121,5 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) {
 	p.Z += (m1 + 2.*m2 + 2.*m3 + m4) / 6.
 	p.T += dt
 
+	return false
 }

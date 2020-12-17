@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	mingtzero = 1e-10
+	mingtzero = 1e-8
 	wellTol   = .1
 )
 

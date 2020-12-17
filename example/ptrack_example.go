@@ -9,8 +9,6 @@ import (
 )
 
 func main() {
-	m := 80
-	n := 30
 
 	//////////////////////////////////////////////////////////////
 	// EXAMPLES from Muhammad Ramadhan, 2015 //
@@ -80,20 +78,20 @@ func main() {
 	if Qwell == 0. {
 		zw = cmplx.NaN()
 	}
-	wm.New(&q, qj, zw, Qtop, Qbot, Qwell, m, n)
+	wm.New(&q, qj, zw, Qtop, Qbot, Qwell)
 	wm.ExportComplexPotentialField(&q, 50)
 
-	pl := pt.RungeKutta{Dt: 0.0001, Ds: 0.0001, Adaptive: false}
+	pl := pt.RungeKuttaAdaptive{Dt: 0.0001, Ds: 0.0001}
 	// pl := pt.EulerSpace{Ds: 0.001}
 	// pl := pt.EulerTime{Dt: 0.0001}
 
-	ec, pathline := pt.TrackToExit(&prt, &q, &wm, &pl, zw, 0)
+	pathline := pt.TrackToExit(&prt, &q, &wm, &pl, zw)
 	// for i, v := range pathline {
 	// 	fmt.Println(i, v)
 	// }
 	printPathline(pathline)
 	plast := pathline[len(pathline)-1]
-	printExitCode(ec, len(zj))
+	// printExitCode(ec, len(zj))
 	fmt.Printf(" particle exit point: %6.4f %6.4f %6.4f %6.4f", plast[0], plast[1], plast[2], plast[3])
 }
 
@@ -106,17 +104,17 @@ func printPathline(p [][]float64) {
 	txtw.Close()
 }
 
-func printExitCode(ec, nf int) {
-	switch {
-	case ec == -9999:
-		fmt.Println(" error: particle has not appeared to exit prism")
-	case ec < 0:
-		fmt.Printf(" particle has exited at well %d\n", -(ec + 1))
-	case ec == nf:
-		fmt.Println(" particle has exited at bottom face")
-	case ec == nf+1:
-		fmt.Println(" particle has exited at top face")
-	default:
-		fmt.Printf(" particle has exited at face %d\n", ec)
-	}
-}
+// func printExitCode(ec, nf int) {
+// 	switch {
+// 	case ec == -9999:
+// 		fmt.Println(" error: particle has not appeared to exit prism")
+// 	case ec < 0:
+// 		fmt.Printf(" particle has exited at well %d\n", -(ec + 1))
+// 	case ec == nf:
+// 		fmt.Println(" particle has exited at bottom face")
+// 	case ec == nf+1:
+// 		fmt.Println(" particle has exited at top face")
+// 	default:
+// 		fmt.Printf(" particle has exited at face %d\n", ec)
+// 	}
+// }

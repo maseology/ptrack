@@ -15,18 +15,13 @@ type WatMethSoln struct {
 	aT, zwl        []complex128
 	zc, r          complex128
 	qv, qw, ql, qb float64
-	m, n, nf       int
+	m, n, nf       int // n control points
 }
 
 // New WatMethSoln constructor
-func (w *WatMethSoln) New(p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwell float64, m, n int) {
-
-	if m < 2*n {
-		panic("total control points is less than twice the order of approximation, no solution can be found")
-	}
-
-	w.m = m
-	w.n = n
+func (w *WatMethSoln) New(p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwell float64) {
+	w.m = 80 // m < 2*n
+	w.n = 30
 	w.ql = 0.
 	w.nf = len(p.Z) // n faces
 	w.zwl = make([]complex128, 1)
@@ -52,6 +47,33 @@ func (w *WatMethSoln) New(p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwe
 	if cmplx.IsNaN(zw) && Qwell != 0. {
 		log.Panicln("need to specify well coordinate")
 	}
+}
+
+// PointVelocity returns the velocity vector for a given (x,y,z) coordinate. ** Set dbdt = 0. for steady-state cases
+func (w *WatMethSoln) PointVelocity(p *Particle, q *Prism, dbdt float64) (float64, float64, float64) {
+	// q.Bn: saturated thickness at beginning of time step at time q.Tn; dbdt: rate of change in saturated thickness
+	bl, bz := math.Min(q.Bn, q.Top-q.Bot), math.Min(q.Bn+(p.T-q.Tn)*dbdt, q.Top-q.Bot) // corrected saturated thickness for lateral and vertical computations
+	zl := (complex(p.X, p.Y) - w.zc) / w.r                                             // complex local coordinate
+	o := w.cmplxVelFlow(zl)
+	if w.qv != 0. {
+		o += w.cmplxVelVert(zl)
+	}
+	if w.qw != 0. && zl != 0 {
+		o += w.cmplxVelWell(zl, 0)
+	}
+	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bl) / q.Por     // eq. 3.19 (steady-state case)
+	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bz) / q.Por // eq. 3.18 (transient case)
+	vx := real(-o) / bl / q.Por
+	vy := imag(o) / bl / q.Por
+	// fmt.Println("  vel", vx, vy)
+	return vx, vy, vz // eq. 3.17
+}
+
+// Contains returns whether the point is solvable within the solution space
+func (w *WatMethSoln) Contains(p *Particle) (float64, bool) {
+	zl := (complex(p.X, p.Y) - w.zc) / w.r // complex local coordinate
+	azl := cmplx.Abs(zl)                   // relative coordinate
+	return azl, azl <= 1.
 }
 
 func (w *WatMethSoln) buildCoefTaylor(zj []complex128, qj []float64, export bool) {
@@ -193,6 +215,7 @@ func (w *WatMethSoln) cmplxVelFlow(zl complex128) complex128 {
 		fj := complex(float64(i-1), 0.)
 		omega += complex(float64(i), 0.) * w.aT[i] * cmplx.Pow(zl, fj)
 	}
+	// fmt.Printf("  omega: %15.5e     zl: %15.5e\n", omega, zl)
 	return -omega / w.r
 }
 
@@ -270,7 +293,7 @@ func (w *WatMethSoln) saveControlPoints(zCtrl []complex128) {
 
 // ExportComplexPotentialField creates a *.csv file containing the distribution of the resulting complex potential field for viewing
 func (w *WatMethSoln) ExportComplexPotentialField(q *Prism, d int) {
-	yn, yx, xn, xx := q.ExtentsXY()
+	yn, yx, xn, xx := q.getExtentsXY()
 	txtw, _ := mmio.NewTXTwriter("cell.bln")
 	txtw.WriteLine(fmt.Sprint(len(q.Z) + 1))
 	for _, v := range q.Z {
@@ -304,38 +327,4 @@ func (w *WatMethSoln) ExportComplexPotentialField(q *Prism, d int) {
 		}
 	}
 	csvw.Close()
-}
-
-// PointVelocity returns the velocity vector for a given (x,y,z) coordinate. ** Set dbdt = 0. for steady-state cases
-func (w *WatMethSoln) PointVelocity(p *Particle, q *Prism, dbdt float64) (float64, float64, float64) {
-	// q.Bn: saturated thickness at beginning of time step at time q.Tn; dbdt: rate of change in saturated thickness
-	bl, bz := math.Min(q.Bn, q.Top-q.Bot), math.Min(q.Bn+(p.T-q.Tn)*dbdt, q.Top-q.Bot) // corrected saturated thickness for lateral and vertical computations
-	zl := (complex(p.X, p.Y) - w.zc) / w.r                                             // complex local coordinate
-	o := w.cmplxVelFlow(zl)
-	if cmplx.IsInf(o) {
-		print()
-	}
-	if w.qv != 0. {
-		o += w.cmplxVelVert(zl)
-		if cmplx.IsInf(o) {
-			print()
-		}
-	}
-	if w.qw != 0. && zl != 0 {
-		o += w.cmplxVelWell(zl, 0)
-		if cmplx.IsInf(o) {
-			print()
-		}
-	}
-	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bl) / q.Por     // eq. 3.19 (steady-state case)
-	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bz) / q.Por // eq. 3.18 (transient case)
-	vx := real(-o) / bl / q.Por
-	vy := imag(o) / bl / q.Por
-	if vx > 10000. {
-		if cmplx.IsInf(o) {
-			print()
-		}
-		print()
-	}
-	return vx, vy, vz // eq. 3.17
 }

@@ -2,62 +2,61 @@ package ptrack
 
 import (
 	"fmt"
-	"log"
 )
 
-// Track a particle through the domain
+// Track a collection of particles through the domain
 func (d *Domain) Track(p Particles, pt ParticleTracker) [][][]float64 {
 	o := make([][][]float64, len(p))
 	for k, pp := range p {
-		fmt.Println(pp)
+		fmt.Printf(" %d: particle start point (x,y,z,t): %6.3f %6.3f %6.3f\n", k, pp.X, pp.Y, pp.Z)
 		o[k] = d.trackParticle(&pp, &pt)
 	}
 	return o
 }
 
 func (d *Domain) trackParticle(p *Particle, pt *ParticleTracker) [][]float64 {
-	pid := d.ParticleToPrismID(p)
-	if pid < 0 {
-		log.Fatalln("Track error: particle not found within domain")
+	var pathline [][]float64
+	for _, pid := range d.ParticleToPrismIDs(p) {
+		pathline = make([][]float64, 0)
+
+		d.trackRecurse(p, pt, &pathline, pid, -1)
+
+		if len(pathline) > 10 {
+			break // in cases where the startpoint sits on a boundary, return the first that tracked
+		}
 	}
 
-	pathline := make([][]float64, 0)
-	d.trackRecurse(p, pt, &pathline, pid)
-
 	plast := pathline[len(pathline)-1]
-	fmt.Printf(" particle exit point: %6.4f %6.4f %6.4f %6.4f\n", plast[0], plast[1], plast[2], plast[3])
+	fmt.Printf("\tparticle exit point  (x,y,z,t): %6.3f %6.3f %6.3f %6.3es\n", plast[0], plast[1], plast[2], plast[3])
 
 	return pathline
 }
 
-func (d *Domain) trackRecurse(p *Particle, pt *ParticleTracker, pl *[][]float64, i int) {
-	fmt.Printf(" > prism %d\n", i)
-	if _, ok := d.VF[i]; !ok {
-		var wm WatMethSoln
-		ql, qb, qt := d.flx[i].LatBotTop()
-		wm.New(d.prsms[i], ql, d.zc[i], -qt, qb, d.flx[i].qw, d.m, d.n)
-		d.VF[i] = &wm
-	}
+func (d *Domain) trackRecurse(p *Particle, pt *ParticleTracker, pl *[][]float64, i, il int) {
+	// fmt.Printf(" > prism %d\n", i)
 
-	ec, plt := TrackToExit(p, d.prsms[i], d.VF[i], *pt, d.zc[i], i)
+	// track within prism
+	plt := TrackToExit(p, d.prsms[i], d.VF[i], *pt, d.zc[i])
 	for _, p := range plt {
-		*pl = append(*pl, p)
+		*pl = append(*pl, p) // add tracks
 	}
 
-	switch {
-	case ec == -9999:
-		if pid := d.ParticleToPrismID(p); pid < 0 {
-			fmt.Println(" particle has exited domain at start point")
+	pids := d.ParticleToPrismIDs(p)
+	switch len(pids) {
+	case 0:
+		fmt.Printf("\tparticle has exited domain %d\n", i)
+	case 1:
+		if pids[0] == il {
+			if i == il {
+				fmt.Printf("\ttracking aborted where particle exited well in cell %d\n", i)
+			} else {
+				fmt.Printf("\ttracking aborted where particle cycle occurred between cells %d-%d\n", i, il)
+			}
 		} else {
-			yn, yx, xn, xx := d.prsms[pid].ExtentsXY()
-			fmt.Printf(" error: particle has not appeared to exit prism %d [%.1f:%.1f, %.1f:%.1f]\n", pid, xn, xx, yn, yx)
+			d.trackRecurse(p, pt, pl, pids[0], i)
 		}
-	case ec < 0:
-		fmt.Printf(" particle has exited at well %d\n", -ec)
-	case d.conn[i][ec] < 0:
-		fmt.Printf(" particle has exited prism %d\n", i)
 	default:
-		// fmt.Printf(" particle has exited at face %d\n", ec)
-		d.trackRecurse(p, pt, pl, d.conn[i][ec])
+		fmt.Printf(" particle path has diverged %d\n", i)
+		d.trackRecurse(p, pt, pl, pids[0], i)
 	}
 }
