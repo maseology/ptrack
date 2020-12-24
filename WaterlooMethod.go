@@ -11,6 +11,7 @@ import (
 )
 
 // WatMethSoln (The Waterloo Method Solution): is a struct that contains a grid cell's internal flow field
+// Rhamadhan, M., 2015, A Semi-Analytical Particle Tracking Algorithm for Arbitrary Unstructured Grids. Unpublished MASc. Thesis. University of Waterloo, Waterloo Ontario.
 type WatMethSoln struct {
 	aT, zwl        []complex128
 	zc, r          complex128
@@ -20,6 +21,7 @@ type WatMethSoln struct {
 
 // New WatMethSoln constructor
 func (w *WatMethSoln) New(p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwell float64) {
+
 	w.m = 80 // m < 2*n
 	w.n = 30
 	w.ql = 0.

@@ -195,8 +195,8 @@ func (d *Domain) ExportVTK(filepath string) {
 	binary.Write(buf, endi, []byte(fmt.Sprintf("\nVECTORS cflux float\n")))
 	for _, i := range cids {
 		q := d.prsms[i]
-		cxy := q.CentroidXY()
-		p := Particle{I: 0, X: real(cxy), Y: imag(cxy), Z: (q.Top + q.Bot) / 2., T: 0.}
+		x, y := q.CentroidXY()
+		p := Particle{I: 0, X: x, Y: y, Z: (q.Top + q.Bot) / 2., T: 0.}
 		vx, vy, vz := d.VF[i].PointVelocity(&p, q, 0.)
 		binary.Write(buf, endi, float32(vx))
 		binary.Write(buf, endi, float32(vy))

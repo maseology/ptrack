@@ -12,7 +12,7 @@ import (
 	"github.com/maseology/mmio"
 )
 
-// ReadMODFLOW reads a MODFLOW6 output file and builds its velocity field
+// ReadMODFLOW reads a MODFLOW6 output file
 func ReadMODFLOW(fprfx string) Domain {
 	var d Domain
 	pset, jaxr := readGRB(fmt.Sprintf("%s.dis.grb", fprfx))

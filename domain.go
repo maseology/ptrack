@@ -24,23 +24,39 @@ func (d *Domain) New(pset PrismSet, pflxs map[int]*PrismFlux) {
 	d.prsms = pset.P
 	d.conn = pset.Conn
 	d.flx = pflxs
-	d.VF = make(map[int]VelocityFielder, len(d.prsms))
 	d.zc = make(map[int]complex128, len(d.prsms))
 	for i, q := range d.prsms {
-		zw := q.CentroidXY()
+		zw := complex(q.CentroidXY())
 		if d.flx[i].qw == 0. {
 			zw = cmplx.NaN()
 		}
 		d.zc[i] = zw
-
-		var wm WatMethSoln //////////////////////  HARD-CODED method  //////////////////////
-		ql, qb, qt := d.flx[i].LatBotTop()
-		wm.New(q, ql, zw, -qt, qb, d.flx[i].qw)
-		d.VF[i] = &wm
 	}
 	zn, zx, yn, yx, xn, xx := d.getExtent()
 	d.extent = []float64{zn, zx, yn, yx, xn, xx}
 }
+
+// MakeWatMeth crates velocity field using the Waterloo Method
+func (d *Domain) MakeWatMeth() {
+	d.VF = make(map[int]VelocityFielder, len(d.prsms))
+	for i, q := range d.prsms {
+		var wm WatMethSoln
+		ql, qb, qt := d.flx[i].LatBotTop()
+		wm.New(q, ql, d.zc[i], -qt, qb, d.flx[i].qw)
+		d.VF[i] = &wm
+	}
+}
+
+// // MakePollock crates velocity field using the Waterloo Method
+// func (d *Domain) MakePollock() {
+// 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
+// 	for i, q := range d.prsms {
+// 		var pm PollockMethod
+// 		ql, qb, qt := d.flx[i].LatBotTop()
+// 		pm.New(q, ql[0], ql[0], ql[0], ql[0], qb, -qt, d.flx[i].qw)
+// 		d.VF[i] = &pm
+// 	}
+// }
 
 // Print properties of the domain
 func (d *Domain) Print() {

@@ -4,32 +4,11 @@ import (
 	"math"
 )
 
-const (
-	safetyFactor = .9
-	// dtx          = 864. // max timestep
-)
-
 // RungeKutta particle pathline integration scheme
 type RungeKutta struct{ Dt float64 }
 
 // RungeKuttaAdaptive particle pathline integration scheme
 type RungeKuttaAdaptive struct{ Ds, Dt float64 }
-
-// // TrackToExit tracks particle to the exit point
-// func (rk *RungeKutta) TrackToExit(p *Particle, q *Prism, w VelocityFielder) [][]float64 {
-// 	output := make([][]float64, 1)
-// 	output[0] = p.State()
-// nextstep:
-// 	rk.Track(p, q, w)
-// 	if len(output) == 1 || q.Contains(p) {
-// 		output = append(output, p.State())
-// 		goto nextstep
-// 	}
-// 	// somewhere between current point and the last is the prism bound
-// 	q.Intersection(p, output[len(output)-1])
-
-// 	return output
-// }
 
 // Track track particle to the next point
 func (rk *RungeKutta) Track(p *Particle, q *Prism, w VelocityFielder) { trial(p, q, w, rk.Dt) }
@@ -59,18 +38,13 @@ redo:
 		rk.Dt *= 2.
 	} else {
 		// fmt.Print(".")
-		rk.Dt *= safetyFactor * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
+		rk.Dt *= .9 * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
 	}
 
 	if dst > rk.Ds {
 		// fmt.Print("|")
 		goto redo // time step too large, repeat calculation
 	}
-
-	// if rk.Dt > dtx {
-	// 	rk.Dt = dtx
-	// }
-	// fmt.Printf(" dt: %15.5e\n", rk.Dt)
 
 	// update particle state
 	p.X = p0.X
