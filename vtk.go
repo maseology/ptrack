@@ -114,12 +114,16 @@ func ExportVTKpathlines(filepath string, pl [][][]float64) {
 func (d *Domain) ExportVTK(filepath string) {
 	// collect cell ids, building flow field
 	fmt.Println("  building flow field..")
-	cids := make([]int, len(d.prsms))
-	for i := range d.prsms {
-		cids = append(cids, i)
-	}
-	sort.Ints(cids)
-	nprsm := len(cids)
+	nprsm, cids := func() (int, []int) {
+		cids, ii := make([]int, len(d.prsms)), 0
+		for i := range d.prsms {
+			cids[ii] = i
+			ii++
+		}
+		sort.Ints(cids)
+		nprsm := len(cids)
+		return nprsm, cids
+	}()
 
 	// collect vertices
 	v, vxr, nvert := func() (map[int][]float64, map[int][]int, int) {

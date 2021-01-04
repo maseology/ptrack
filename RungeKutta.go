@@ -11,46 +11,108 @@ type RungeKutta struct{ Dt float64 }
 type RungeKuttaAdaptive struct{ Ds, Dt float64 }
 
 // Track track particle to the next point
-func (rk *RungeKutta) Track(p *Particle, q *Prism, w VelocityFielder) { trial(p, q, w, rk.Dt) }
+func (rk *RungeKutta) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan []float64 {
+	chout := make(chan []float64)
+	go func() {
+		defer close(chout)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				trial(p, q, w, rk.Dt)
+				chout <- p.State()
+			}
+		}
+	}()
+	return chout
+}
 
 // Track track particle to the next point
-func (rk *RungeKuttaAdaptive) Track(p *Particle, q *Prism, w VelocityFielder) {
-redo:
-	p0, p1 := *p, *p
+func (rk *RungeKuttaAdaptive) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan []float64 {
+	chout := make(chan []float64)
+	go func() {
+		defer close(chout)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				p0, p1 := *p, *p
 
-	// 1 full step
-	if trial(&p1, q, w, rk.Dt) {
-		rk.Dt /= 2.
-		goto redo
-	}
-	// 2 half steps
-	if trial(&p0, q, w, rk.Dt/2.) {
-		rk.Dt /= 2.
-		goto redo
-	}
-	if trial(&p0, q, w, rk.Dt/2.) {
-		rk.Dt /= 2.
-		goto redo
-	}
+				// 1 full step
+				if trial(&p1, q, w, rk.Dt) {
+					rk.Dt /= 2.
+					continue
+				}
+				// 2 half steps
+				if trial(&p0, q, w, rk.Dt/2.) {
+					rk.Dt /= 2.
+					continue
+				}
+				if trial(&p0, q, w, rk.Dt/2.) {
+					rk.Dt /= 2.
+					continue
+				}
 
-	dst := p0.Dist(&p1)
-	if dst == 0. {
-		rk.Dt *= 2.
-	} else {
-		// fmt.Print(".")
-		rk.Dt *= .9 * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
-	}
+				dst := p0.Dist(&p1)
+				if dst == 0. {
+					rk.Dt *= 2.
+				} else {
+					rk.Dt *= .9 * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
+				}
 
-	if dst > rk.Ds {
-		// fmt.Print("|")
-		goto redo // time step too large, repeat calculation
-	}
+				if dst > rk.Ds {
+					continue // time step too large, repeat calculation
+				}
 
-	// update particle state
-	p.X = p0.X
-	p.Y = p0.Y
-	p.Z = p0.Z
-	p.T = p0.T
+				// update particle state
+				p.X = p0.X
+				p.Y = p0.Y
+				p.Z = p0.Z
+				p.T = p0.T
+				chout <- p.State()
+			}
+		}
+	}()
+	return chout
+
+	// redo:
+	// 	p0, p1 := *p, *p
+
+	// 	// 1 full step
+	// 	if trial(&p1, q, w, rk.Dt) {
+	// 		rk.Dt /= 2.
+	// 		goto redo
+	// 	}
+	// 	// 2 half steps
+	// 	if trial(&p0, q, w, rk.Dt/2.) {
+	// 		rk.Dt /= 2.
+	// 		goto redo
+	// 	}
+	// 	if trial(&p0, q, w, rk.Dt/2.) {
+	// 		rk.Dt /= 2.
+	// 		goto redo
+	// 	}
+
+	// 	dst := p0.Dist(&p1)
+	// 	if dst == 0. {
+	// 		rk.Dt *= 2.
+	// 	} else {
+	// 		// fmt.Print(".")
+	// 		rk.Dt *= .9 * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
+	// 	}
+
+	// 	if dst > rk.Ds {
+	// 		// fmt.Print("|")
+	// 		goto redo // time step too large, repeat calculation
+	// 	}
+
+	// 	// update particle state
+	// 	p.X = p0.X
+	// 	p.Y = p0.Y
+	// 	p.Z = p0.Z
+	// 	p.T = p0.T
 }
 
 func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {

@@ -2,7 +2,7 @@ package ptrack
 
 // PrismFlux contains the flux data normal to prism faces
 type PrismFlux struct {
-	q  []float64 // left-up-right-down-bottom-top
+	q  []float64 // left-up-right-down-bottom-top (rectilinear)
 	qw float64   // source/sink/well (at cell centroid??)
 }
 

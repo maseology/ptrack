@@ -36,8 +36,8 @@ func (d *Domain) New(pset PrismSet, pflxs map[int]*PrismFlux) {
 	d.extent = []float64{zn, zx, yn, yx, xn, xx}
 }
 
-// MakeWatMeth crates velocity field using the Waterloo Method
-func (d *Domain) MakeWatMeth() {
+// MakeWaterloo creates velocity field using the Waterloo Method
+func (d *Domain) MakeWaterloo() {
 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
 	for i, q := range d.prsms {
 		var wm WatMethSoln
@@ -47,16 +47,17 @@ func (d *Domain) MakeWatMeth() {
 	}
 }
 
-// // MakePollock crates velocity field using the Waterloo Method
-// func (d *Domain) MakePollock() {
-// 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
-// 	for i, q := range d.prsms {
-// 		var pm PollockMethod
-// 		ql, qb, qt := d.flx[i].LatBotTop()
-// 		pm.New(q, ql[0], ql[0], ql[0], ql[0], qb, -qt, d.flx[i].qw)
-// 		d.VF[i] = &pm
-// 	}
-// }
+// MakePollock creates velocity field using the Pollock (MODPATH) Method
+func (d *Domain) MakePollock(dt float64) {
+	d.VF = make(map[int]VelocityFielder, len(d.prsms))
+	for i, q := range d.prsms {
+		var pm PollockMethod
+		ql, qb, qt := d.flx[i].LatBotTop() // left-up-right-down-bottom-top
+		pm.New(q, -ql[0], -ql[2], -ql[3], -ql[1], qb, qt, d.flx[i].qw)
+		pm.dt = dt
+		d.VF[i] = &pm
+	}
+}
 
 // Print properties of the domain
 func (d *Domain) Print() {
