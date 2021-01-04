@@ -33,8 +33,3 @@ func (p *Particle) PrintState() string {
 func (p *Particle) Dist(p1 *Particle) float64 {
 	return math.Sqrt(math.Pow(p.X-p1.X, 2.) + math.Pow(p.Y-p1.Y, 2.) + math.Pow(p.Z-p1.Z, 2.))
 }
-
-// // Clone creates an exact copy of Particle
-// func (p *Particle) Clone() Particle {
-// 	return Particle{I: p.I, X: p.X, Y: p.Y, Z: p.Z, T: p.T}
-// }

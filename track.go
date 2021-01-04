@@ -33,7 +33,6 @@ func (d *Domain) trackParticle(p *Particle, pt *ParticleTracker) [][]float64 {
 }
 
 func (d *Domain) trackRecurse(p *Particle, pt *ParticleTracker, pl *[][]float64, i, il int) {
-	// fmt.Printf(" > prism %d\n", i)
 
 	// track within prism
 	plt := trackToExit(p, d.prsms[i], d.VF[i], *pt, d.zc[i])

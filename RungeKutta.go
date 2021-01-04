@@ -76,43 +76,6 @@ func (rk *RungeKuttaAdaptive) track(done <-chan interface{}, p *Particle, q *Pri
 		}
 	}()
 	return chout
-
-	// redo:
-	// 	p0, p1 := *p, *p
-
-	// 	// 1 full step
-	// 	if trial(&p1, q, w, rk.Dt) {
-	// 		rk.Dt /= 2.
-	// 		goto redo
-	// 	}
-	// 	// 2 half steps
-	// 	if trial(&p0, q, w, rk.Dt/2.) {
-	// 		rk.Dt /= 2.
-	// 		goto redo
-	// 	}
-	// 	if trial(&p0, q, w, rk.Dt/2.) {
-	// 		rk.Dt /= 2.
-	// 		goto redo
-	// 	}
-
-	// 	dst := p0.Dist(&p1)
-	// 	if dst == 0. {
-	// 		rk.Dt *= 2.
-	// 	} else {
-	// 		// fmt.Print(".")
-	// 		rk.Dt *= .9 * math.Pow(rk.Ds/dst, .2) // adaptive timestepping
-	// 	}
-
-	// 	if dst > rk.Ds {
-	// 		// fmt.Print("|")
-	// 		goto redo // time step too large, repeat calculation
-	// 	}
-
-	// 	// update particle state
-	// 	p.X = p0.X
-	// 	p.Y = p0.Y
-	// 	p.Z = p0.Z
-	// 	p.T = p0.T
 }
 
 func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
