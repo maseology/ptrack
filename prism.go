@@ -44,6 +44,17 @@ func (q *Prism) computeArea() {
 	}
 }
 
+func (q *Prism) Saturation() float64 {
+	return (q.Bn - q.Bot) / (q.Top - q.Bot)
+}
+
+// Centroid returns the coordinates of the prism centroid
+func (q *Prism) Centroid() *Particle {
+	x, y := q.CentroidXY()
+	z := (q.Top - q.Bot) / 2.
+	return &Particle{X: x, Y: y, Z: z}
+}
+
 // CentroidXY returns the coordinates of the prism centroid
 func (q *Prism) CentroidXY() (x, y float64) {
 	sc, c := 0.+0.i, 0

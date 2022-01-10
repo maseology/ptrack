@@ -11,7 +11,7 @@ import (
 )
 
 // ExportVTKpathlines saves particle tracking results as a *.vtk file for visualization.
-func ExportVTKpathlines(filepath string, pl [][][]float64) {
+func ExportVTKpathlines(filepath string, pl [][][]float64, vertExag float64) {
 	// write to data buffer
 	buf, endi, np := new(bytes.Buffer), binary.BigEndian, 0
 	for _, a := range pl {
@@ -28,7 +28,7 @@ func ExportVTKpathlines(filepath string, pl [][][]float64) {
 		for _, aa := range a {
 			binary.Write(buf, endi, float32(aa[0]))
 			binary.Write(buf, endi, float32(aa[1]))
-			binary.Write(buf, endi, float32(aa[2]))
+			binary.Write(buf, endi, float32(aa[2]*vertExag))
 		}
 	}
 
@@ -53,10 +53,10 @@ func ExportVTKpathlines(filepath string, pl [][][]float64) {
 	}
 }
 
-// ExportVTK saves particle tracking results as a *.vtk file for visualization.
-func (d *Domain) ExportVTK(filepath string) {
+// ExportVTK saves model domain as a *.vtk file for visualization.
+func (d *Domain) ExportVTK(filepath string, vertExag float64) {
 	// collect cell ids, building flow field
-	fmt.Println("  building flow field..")
+	fmt.Println(" exporting VTK flow field..")
 	nprsm, cids := func() (int, []int) {
 		cids, ii := make([]int, len(d.prsms)), 0
 		for i := range d.prsms {
@@ -74,12 +74,12 @@ func (d *Domain) ExportVTK(filepath string) {
 		for _, i := range cids {
 			p, s1 := d.prsms[i], make([]int, 0)
 			for _, c := range p.Z {
-				v[cnt] = []float64{real(c), imag(c), p.Top}
+				v[cnt] = []float64{real(c), imag(c), p.Top * vertExag}
 				s1 = append(s1, cnt)
 				cnt++
 			}
 			for _, c := range p.Z {
-				v[cnt] = []float64{real(c), imag(c), p.Bot}
+				v[cnt] = []float64{real(c), imag(c), p.Bot * vertExag}
 				s1 = append(s1, cnt)
 				cnt++
 			}
@@ -138,16 +138,23 @@ func (d *Domain) ExportVTK(filepath string) {
 		binary.Write(buf, endi, int32(i))
 	}
 
-	// centroid flux
-	binary.Write(buf, endi, []byte(fmt.Sprintf("\nVECTORS cflux float\n")))
+	// saturation
+	binary.Write(buf, endi, []byte(fmt.Sprintf("SCALARS saturation float\n")))
+	binary.Write(buf, endi, []byte(fmt.Sprintf("LOOKUP_TABLE default\n")))
+	for _, i := range cids {
+		binary.Write(buf, endi, float32(d.prsms[i].Saturation()))
+	}
+
+	// centroid point velocity
+	binary.Write(buf, endi, []byte(fmt.Sprintf("\nVECTORS Vcentroid double\n")))
 	for _, i := range cids {
 		q := d.prsms[i]
 		x, y := q.CentroidXY()
 		p := Particle{I: 0, X: x, Y: y, Z: (q.Top + q.Bot) / 2., T: 0.}
 		vx, vy, vz := d.VF[i].PointVelocity(&p, q, 0.)
-		binary.Write(buf, endi, float32(vx))
-		binary.Write(buf, endi, float32(vy))
-		binary.Write(buf, endi, float32(vz))
+		binary.Write(buf, endi, vx)
+		binary.Write(buf, endi, vy)
+		binary.Write(buf, endi, vz)
 	}
 
 	// write to file

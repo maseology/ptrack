@@ -14,15 +14,26 @@ import (
 
 // ReadMODFLOW reads a MODFLOW6 output file
 func ReadMODFLOW(fprfx string) Domain {
-	var d Domain
 	pset, jaxr := readGRB(fmt.Sprintf("%s.dis.grb", fprfx))
-	pflx := readCBC(fmt.Sprintf("%s.cbc", fprfx), jaxr)
+	fpcbc := fmt.Sprintf("%s.cbc", fprfx)
+	if _, ok := mmio.FileExists(fpcbc); !ok {
+		fpcbc = fmt.Sprintf("%s.flx", fprfx)
+	}
+	pflx := readCBC(fpcbc, jaxr)
 	func() {
-		for m := range readDependentVariable(fmt.Sprintf("%s.hds", fprfx)) {
+		for m, v := range readDependentVariable(fmt.Sprintf("%s.hds", fprfx)) {
 			fmt.Printf("  DV: %s\n", m)
+			if m == "HEAD" {
+				for i, vv := range v {
+					if vv < pset.P[i].Top {
+						pset.P[i].Bn = vv
+					}
+				}
+			}
 		}
 	}()
-	// fmt.Println(readDependentVariable(fmt.Sprintf("%s.hds", fprfx)))
+
+	var d Domain
 	d.New(pset, pflx)
 	return d
 }
@@ -140,18 +151,18 @@ func readGRBgrid(buf *bytes.Reader) (PrismSet, map[int]jaxr) {
 				if idomain[c] >= 0 {
 					var p Prism
 					if k == 0 {
-						p.New(z, top[c], botm[c], top[cl], 0., 0.3)
+						p.New(z, top[c], botm[c], top[cl], 0., defaultPorosity)
 					} else {
 						for kk := k - 1; kk >= 0; kk-- {
 							c0 := kk*cpl + cl
 							if idomain[c0] > 0 {
-								p.New(z, botm[c0], botm[c], top[cl], 0., 0.3)
+								p.New(z, botm[c0], botm[c], top[cl], 0., defaultPorosity)
 								break
 							} else if idomain[c0] == 0 {
-								p.New(z, botm[c0], botm[c], botm[c0], 0., 0.3)
+								p.New(z, botm[c0], botm[c], botm[c0], 0., defaultPorosity)
 								break
 							} else if kk == 0 {
-								p.New(z, top[cl], botm[c], top[cl], 0., 0.3)
+								p.New(z, top[cl], botm[c], top[cl], 0., defaultPorosity)
 							}
 						}
 					}
@@ -358,15 +369,15 @@ func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
 		}
 	}
 
-	// // print available outputs
-	// fmt.Println("2d")
-	// for i := range dat2D {
-	// 	fmt.Println(i)
-	// }
-	// fmt.Println("1d")
-	// for i := range dat1D {
-	// 	fmt.Println(i)
-	// }
+	// print available outputs
+	fmt.Println("  CBC: 2D")
+	for i := range dat2D {
+		fmt.Printf("      %s\n", i)
+	}
+	fmt.Println("  CBC: 1D")
+	for i := range dat1D {
+		fmt.Printf("      %s\n", i)
+	}
 
 	pflx := make(map[int]*PrismFlux)
 	if val, ok := dat1D["FLOW-JA-FACE"]; ok {
@@ -392,6 +403,16 @@ func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
 			}
 			// fmt.Println(i, v[0])
 			pflx[i].qw += v[0]
+		}
+	}
+	if val, ok := dat2D["RCH"]; ok {
+		// fmt.Println("\nWEL data:")
+		for i, v := range val {
+			if len(v) > 1 {
+				log.Fatalln("MODFLOW CBC read error: RCH given with greater than 1 NDAT")
+			}
+			// fmt.Println(i, v[0])
+			pflx[i].q[5] = v[0]
 		}
 	}
 	if val, ok := dat2D["CHD"]; ok {

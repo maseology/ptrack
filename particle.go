@@ -5,11 +5,6 @@ import (
 	"math"
 )
 
-const (
-	mingtzero = 1e-8
-	wellTol   = .1
-)
-
 // Particles is a collection of Particle
 type Particles []Particle
 
@@ -22,6 +17,14 @@ type Particle struct {
 // State returns the particles current state in CSV format
 func (p *Particle) State() []float64 {
 	return []float64{p.X, p.Y, p.Z, p.T}
+}
+
+// ResetState returns the particles current state in CSV format
+func (p *Particle) ResetState(s []float64) {
+	p.X = s[0]
+	p.Y = s[1]
+	p.Z = s[2]
+	p.T = s[3]
 }
 
 // PrintState returns the particles current state in CSV format
