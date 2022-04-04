@@ -11,61 +11,73 @@ import (
 
 // Domain is a set of cells that constitute a model
 type Domain struct {
-	prsms  map[int]*Prism
-	flx    map[int]*PrismFlux
-	VF     map[int]VelocityFielder
-	conn   map[int][]int
-	zw     map[int]complex128
-	extent []float64
+	VF    map[int]VelocityFielder // prism velocity field
+	pt    ParticleTracker         // needed only for waterloo method
+	prsms map[int]*Prism          // prism dimensions
+	flx   map[int][]float64       // prism flux
+	conn  map[int][]int           // prism connectivity
+	zw    map[int]complex128      // well(/point) coordinates
+	qw    map[int]float64         // well(/point) flux
+	// extent []float64
 }
 
 // Nprism returns the prisms (cells) in the domain
 func (d *Domain) Nprism() int { return len(d.prsms) }
 
 // New Domain constructor
-func (d *Domain) New(pset PrismSet, pflxs map[int]*PrismFlux) {
-	d.prsms = pset.P
-	d.conn = pset.Conn
+func (d *Domain) New(prsms map[int]*Prism, conn map[int][]int, pflxs map[int][]float64, qwell map[int]float64) {
+	d.prsms = prsms
+	d.conn = conn
 	d.flx = pflxs
-	d.zw = make(map[int]complex128, len(d.prsms))
+	d.zw = make(map[int]complex128, len(qwell)) //, len(d.prsms))
+	d.qw = make(map[int]float64, len(qwell))
 	for i, q := range d.prsms {
-		zwt := complex(q.CentroidXY())
-		if d.flx[i].qw == 0. {
-			zwt = cmplx.NaN()
+		if qwell[i] != 0. {
+			d.zw[i] = complex(q.CentroidXY())
+			d.qw[i] = qwell[i]
 		}
-		d.zw[i] = zwt
 	}
-	zn, zx, yn, yx, xn, xx := d.getExtent()
-	d.extent = []float64{zn, zx, yn, yx, xn, xx}
+	// for i, q := range d.prsms {
+	// 	zwt := complex(q.CentroidXY())
+	// 	if qwell[i] == 0. {
+	// 		zwt = cmplx.NaN()
+	// 	}
+	// 	d.zw[i] = zwt
+	// }
+	// // zn, zx, yn, yx, xn, xx := d.getExtent()
+	// // d.extent = []float64{zn, zx, yn, yx, xn, xx}
 }
 
 // MakeWaterloo creates velocity field using the Waterloo Method
-func (d *Domain) MakeWaterloo() {
+func (d *Domain) MakeWaterloo(pt ParticleTracker) {
 	fmt.Println(" building Waterloo method flow field..")
 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
 	for i, q := range d.prsms {
 		var wm WatMethSoln
-		ql, qb, qt := d.flx[i].LatBotTop() // left-up-right-down-bottom-top
-		wm.New(i, q, ql, d.zw[i], -qt, qb, d.flx[i].qw, 80, 30, false)
+		nf := len(d.flx[i])
+		ql, qb, qt := d.flx[i][:nf-2], d.flx[i][nf-2], d.flx[i][nf-1] // [laterals CCW order]-bottom-top; left-up-right-down-bottom-top
+		wm.New(i, q, ql, d.zw[i], -qt, qb, d.qw[i], 80, 30, false)
 		d.VF[i] = &wm
 	}
+	d.pt = pt
 }
 
 // MakePollock creates velocity field using the Pollock (MODPATH) Method
-func (d *Domain) MakePollock(dt float64) *PollockMethod {
+func (d *Domain) MakePollock(dt float64) {
 	fmt.Println(" building Pollock method flow field..")
 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
 	for i, q := range d.prsms {
 		var pm PollockMethod
-		ql, qb, qt := d.flx[i].LatBotTop()                            // left-up-right-down-bottom-top
+		nf := len(d.flx[i])
+		ql, qb, qt := d.flx[i][:nf-2], d.flx[i][nf-2], d.flx[i][nf-1] // left-up-right-down-bottom-top
 		pm.New(q, d.zw[i], ql[0], -ql[2], ql[3], -ql[1], qb, -qt, dt) // q (prism), well (assumed centroid), Qx0, Qx1, Qy0, Qy1, Qz0, Qz1,  dt
 		d.VF[i] = &pm
 	}
-	return &PollockMethod{}
+	// d.PT = &PollockMethod{}
 }
 
 // MakeVector creates velocity field based on a uniform prism velocity vector
-func (d *Domain) MakeVector() *VectorMethSoln {
+func (d *Domain) MakeVector() {
 	fmt.Println(" building vector-based flow field..")
 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
 	for i, q := range d.prsms {
@@ -78,10 +90,10 @@ func (d *Domain) MakeVector() *VectorMethSoln {
 		for j := 0; j < len(q.Z); j++ {
 			r = math.Max(r, cmplx.Abs(q.Z[j]-zc))
 		}
-		vm.New(zc, d.flx[i].q, q.Por, r)
+		vm.New(zc, d.flx[i], q.Por, r)
 		d.VF[i] = &vm
 	}
-	return &VectorMethSoln{}
+	// d.PT = &VectorMethSoln{}
 }
 
 // Print properties of the domain
@@ -117,6 +129,7 @@ func (d *Domain) getExtent() (zn, zx, yn, yx, xn, xx float64) {
 }
 
 // ParticleToPrismIDs returns a set of prisms for which a particle is located
+// position index: left-up-right-down-bottom-top
 func (d *Domain) ParticleToPrismIDs(p *Particle, prsmLast int) []int {
 	var pids []int
 	if prsmLast < 0 { // brute force solution
@@ -127,7 +140,7 @@ func (d *Domain) ParticleToPrismIDs(p *Particle, prsmLast int) []int {
 		}
 	} else {
 		for _, pid := range d.conn[prsmLast] {
-			if pid < 0 { //left-up-right-down-bottom-top
+			if pid < 0 { // left-up-right-down-bottom-top
 				continue
 			}
 			if d.prsms[pid].Contains(p) {
@@ -157,9 +170,20 @@ func (d *Domain) PrintToCSV(fp string) {
 		pi = append(pi, i)
 	}
 	sort.Ints(pi)
+	maxAbsFlux := func(i int) float64 {
+		qx := 0.
+		for _, q := range d.flx[i] {
+			aq := math.Abs(q)
+			if aq > qx {
+				qx = aq
+			}
+		}
+		return qx
+	}
 	for _, i := range pi {
 		yn, yx, xn, xx := d.prsms[i].getExtentsXY()
-		csvw.WriteLine(i, fmt.Sprintf("%v", d.conn[i]), fmt.Sprintf("[(%.1f %.1f) (%.1f %.1f) (%.1f %.1f)]", xn, xx, yn, yx, d.prsms[i].Bot, d.prsms[i].Top), d.flx[i].MaxAbsFlux())
+
+		csvw.WriteLine(i, fmt.Sprintf("%v", d.conn[i]), fmt.Sprintf("[(%.1f %.1f) (%.1f %.1f) (%.1f %.1f)]", xn, xx, yn, yx, d.prsms[i].Bot, d.prsms[i].Top), maxAbsFlux(i))
 	}
 
 	csvw.Close()

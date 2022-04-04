@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/cmplx"
 
-	mmplt "github.com/maseology/mmPlot"
 	"github.com/maseology/mmio"
 	"gonum.org/v1/gonum/mat"
 )
@@ -21,7 +20,7 @@ type WatMethSoln struct {
 }
 
 // New WatMethSoln constructor
-func (w *WatMethSoln) New(prismID int, p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwell float64, m, n int, export bool) {
+func (w *WatMethSoln) New(prismID int, p *Prism, Qj []float64, zw complex128, Qtop, Qbot, Qwell float64, m, n int, prnt bool) {
 	w.m = m      // Total control points
 	w.n = n      // Order of Approximation
 	if m < 2*n { // constraint
@@ -37,7 +36,7 @@ func (w *WatMethSoln) New(prismID int, p *Prism, Qj []float64, zw complex128, Qt
 	}
 	w.ql = wbal // cumulative lateral inflows
 	wbal += Qwell - Qvert
-	if math.Abs(wbal) > mingtzero { // step 1: check mass balance (eq 3.7)
+	if math.Abs(wbal)/w.ql > mingtzero { // step 1: check mass balance (eq 3.7)
 		fmt.Printf("Qwell: %6.3f  Qbot: %6.3f  Qtop: %6.3f  Qlat %6.3f\n", Qwell, Qbot, Qtop, Qj)
 		log.Fatalf("cell mass-balance error in prism %d: %v\n", prismID, wbal)
 	}
@@ -45,7 +44,7 @@ func (w *WatMethSoln) New(prismID int, p *Prism, Qj []float64, zw complex128, Qt
 	w.qv = Qvert / p.A                 // Qvert = Qtop-Qbot, positive up, negative down
 	w.qw = Qwell / 2. / math.Pi
 
-	w.buildCoefTaylor(p.Z, Qj, export) // (p.Z, Qj, Qvert == 0. && Qwell == 0.)
+	w.buildCoefTaylor(p.Z, Qj, prnt) // (p.Z, Qj, Qvert == 0. && Qwell == 0.)
 
 	w.qb = Qbot / p.A
 	w.zwl[0] = (zw - w.zc) / w.r // local well coordinate
@@ -54,34 +53,7 @@ func (w *WatMethSoln) New(prismID int, p *Prism, Qj []float64, zw complex128, Qt
 	}
 }
 
-// PointVelocity returns the velocity vector for a given (x,y,z) coordinate. ** Set dbdt = 0. for steady-state cases
-func (w *WatMethSoln) PointVelocity(p *Particle, q *Prism, dbdt float64) (float64, float64, float64) {
-	// q.Bn: saturated thickness at beginning of time step at time q.Tn; dbdt: rate of change in saturated thickness
-	bl, bz := math.Min(q.Bn, q.Top-q.Bot), math.Min(q.Bn+(p.T-q.Tn)*dbdt, q.Top-q.Bot) // corrected saturated thickness for lateral and vertical computations
-	zl := (complex(p.X, p.Y) - w.zc) / w.r                                             // complex local coordinate
-	o := w.cmplxVelFlow(zl)
-	if w.qv != 0. {
-		o += w.cmplxVelVert(zl)
-	}
-	if w.qw != 0. && zl != 0 {
-		o += w.cmplxVelWell(zl, 0)
-	}
-	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bl) / q.Por     // eq. 3.19 (steady-state case)
-	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bz) / q.Por // eq. 3.18 (transient case)
-	vx := real(-o) / bl / q.Por
-	vy := imag(o) / bl / q.Por
-	// fmt.Println("  vel", vx, vy)
-	return vx, vy, vz // eq. 3.17
-}
-
-// Contains returns whether the point is solvable within the solution space
-func (w *WatMethSoln) Contains(p *Particle) (float64, bool) {
-	zl := (complex(p.X, p.Y) - w.zc) / w.r // complex local coordinate
-	azl := cmplx.Abs(zl)                   // relative coordinate
-	return azl, azl <= 1.
-}
-
-func (w *WatMethSoln) buildCoefTaylor(zj []complex128, qj []float64, export bool) {
+func (w *WatMethSoln) buildCoefTaylor(zj []complex128, qj []float64, prnt bool) {
 	// The Waterloo method
 	// Muhammad Ramadhan, 2015. a Semi-Analytic Particle Tracking Algorithm for Arbitrary Unstructured Grids. M.A.Sc thesis. University of Waterloo.
 
@@ -103,16 +75,16 @@ func (w *WatMethSoln) buildCoefTaylor(zj []complex128, qj []float64, export bool
 	for i := 0; i < w.m; i++ {
 		sCtrl[i] = (float64(i) + 0.5) * sc // eq. 3.6a
 		if sCtrl[i] > pNext {
+			j++
 			pPrev = pNext
 			pNext += lj[j]
-			j++
 		}
 		ijx[i] = j // control point to face cross-reference
 		jnext := (j + 1) % w.nf
 		zCtrlGlobal := complex((sCtrl[i]-pPrev)/lj[j], 0.)*(zj[jnext]-zj[j]) + zj[j] // eq. 3.6b
 		zCtrl[i] = (zCtrlGlobal - w.zc) / w.r                                        // local control point (Z_ctrl) eq. 3.6c
 	}
-	if export {
+	if prnt {
 		w.saveControlPoints(zCtrl)
 	}
 
@@ -154,159 +126,40 @@ func (w *WatMethSoln) buildCoefTaylor(zj []complex128, qj []float64, export bool
 	}
 	w.aT = aTaylor
 
-	if export {
+	if prnt {
 		w.plotPerimeterFlux(zj, qj, lj, p, 500) //, w.m) //, 500) //
 	}
 }
 
-func svdSolve(a *mat.Dense, b *mat.VecDense) *mat.VecDense {
-	// following https://www.youtube.com/watch?v=oTCLm-WnX9Y
-	// svdSolve(mat.NewDense(3, 2, []float64{1., 0., 0., 2., 0., 1.}), mat.NewVecDense(3, []float64{0., 1., 0.}))
-	// Solve x in Ax=b
-	ar, ac := a.Dims()
-
-	var svd mat.SVD
-	if !svd.Factorize(a, mat.SVDFull) {
-		panic("SVD solver error")
+// PointVelocity returns the velocity vector for a given (x,y,z) coordinate. ** Set dbdt = 0. for steady-state cases
+func (w *WatMethSoln) PointVelocity(p *Particle, q *Prism, dbdt float64) (float64, float64, float64) {
+	// q.Bn: saturated thickness at beginning of time step at time q.Tn; dbdt: rate of change in saturated thickness
+	bl, bz := math.Min(q.Bn, q.Top-q.Bot), math.Min(q.Bn+(p.T-q.Tn)*dbdt, q.Top-q.Bot) // corrected saturated thickness for lateral and vertical computations
+	zl := (complex(p.X, p.Y) - w.zc) / w.r                                             // complex local coordinate
+	o := w.cmplxVelFlow(zl)
+	if w.qv != 0. {
+		o += w.cmplxVelVert(zl)
 	}
-	u, v := &mat.Dense{}, &mat.Dense{}
-	svd.UTo(u)
-	svd.VTo(v)
-	sv := svd.Values(nil) // sigma vectors
-	for i := 0; i < len(sv); i++ {
-		if sv[i] != 0. {
-			sv[i] = 1. / sv[i]
-		}
+	if w.qw != 0. && zl != 0 {
+		o += w.cmplxVelWell(zl, 0)
 	}
-	s := mat.NewDiagonalRect(ar, ac, sv)
-	si := mat.DenseCopyOf(s.T()) // pseudo-inverse
-
-	z := mat.NewVecDense(ar, nil)
-	z.MulVec(u.T(), b)
-
-	y := mat.NewVecDense(ac, nil)
-	y.MulVec(si, z)
-
-	x := mat.NewVecDense(ac, nil)
-	x.MulVec(v, y)
-
-	return x
+	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bl) / q.Por     // eq. 3.19 (steady-state case)
+	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bz) / q.Por // eq. 3.18 (transient case)
+	vx := real(-o) / bl / q.Por
+	vy := imag(o) / bl / q.Por
+	// fmt.Println("  vel", vx, vy)
+	return vx, vy, vz // eq. 3.17
 }
 
-func (w *WatMethSoln) cmplxPotFlow(zl complex128) complex128 {
-	var omega complex128 // complex flow field function (eq. 2.9a and 3.9)
-	for i := 0; i < w.n; i++ {
-		fj := complex(float64(i), 0.)
-		omega += w.aT[i] * cmplx.Pow(zl, fj)
-	}
-	return omega
-}
-
-func (w *WatMethSoln) cmplxPotVert(zl complex128) complex128 {
-	h := -w.qv / 2. // vertical flux function (eq. 3.9)
-	// h *= real(cmplx.Pow(w.r*zl, 2+0i))
-	h *= math.Pow(real(w.r*zl), 2.)
-	return complex(h, 0.)
-}
-
-func (w *WatMethSoln) cmplxPotWell(zl complex128, wID int) complex128 {
-	h := w.qw // well function (eq. 3.9)
-	h *= math.Log(real(w.r) * cmplx.Abs(zl-w.zwl[wID]))
-	return complex(h, 0.)
-}
-
-func (w *WatMethSoln) cmplxVelFlow(zl complex128) complex128 {
-	var omega complex128 // complex flow field function (eq. 3.16)
-	for i := 1; i < w.n; i++ {
-		fj := complex(float64(i-1), 0.)
-		omega += complex(float64(i), 0.) * w.aT[i] * cmplx.Pow(zl, fj)
-	}
-	// fmt.Printf("  omega: %15.5e     zl: %15.5e\n", omega, zl)
-	return -omega / w.r
-}
-
-func (w *WatMethSoln) cmplxVelVert(zl complex128) complex128 {
-	v := w.qv * real(w.r*zl) // vertical flux function (eq. 3.16)
-	return complex(v, 0.)
-}
-
-func (w *WatMethSoln) cmplxVelWell(zl complex128, wID int) complex128 {
-	q := complex(-w.qw, 0.) // well function (eq. 3.16)
-	q /= w.r * (zl - w.zwl[wID])
-	return q
-}
-
-func (w *WatMethSoln) plotPerimeterFlux(zj []complex128, qj, lj []float64, p float64, b int) {
-	// print perimeter fluxes for testing (such as Figure 3.13 in Ramadhan, 2015)
-	sCtrl, qn, qi, qjj := make([]float64, b), make([]float64, b), make([]float64, b), make([]float64, b)
-	zobs, hi, si := make([]complex128, b), make([]float64, b), make([]float64, b)
-	pPrev, pNext, j, sc, ijx := 0., lj[0], 0, p/float64(b), make([]int, b)
-	for i := 0; i < b; i++ {
-		sCtrl[i] = (float64(i) + 0.5) * sc // eq. 3.6a (modified)
-		if sCtrl[i] > pNext {
-			pPrev = pNext
-			j++
-			pNext += lj[j]
-		}
-		ijx[i] = j
-		qjj[i] = qj[j]
-		qi[i] = qj[j] / lj[j] // normalized cell flows eq. 3.8
-		jnext := (j + 1) % w.nf
-		zGlobal := complex((sCtrl[i]-pPrev)/lj[j], 0.)*(zj[jnext]-zj[j]) + zj[j] // eq. 3.6b
-		zLocal := (zGlobal - w.zc) / w.r                                         // eq. 3.6c
-		zobs[i] = zGlobal
-		o := w.cmplxPotFlow(zLocal)
-		// cpot[i] = o
-		hi[i] = real(o) // potential
-		si[i] = imag(o) // stream line
-	}
-
-	er := 0.
-	for i := 0; i < b; i++ {
-		ip := (i + 1) % b
-		im := i - 1
-		if im < 0 {
-			im += b
-		}
-		ds := 0.5 * (sCtrl[ip] - sCtrl[im]) //:= sc
-
-		fmt.Println(ijx[i], sCtrl[i], ip, i, im, ds, sc, si[ip], si[i], si[im])
-
-		// qn[i] = imag((cpot[ip] - cpot[im]) / complex(2*sc, 0.)) // qn=dPsi/ds
-		qn[i] = (si[ip] - si[im]) / 2. / sc // qn=dPsi/ds
-		er += math.Abs(qi[i] - qn[i])
-		qn[i] *= lj[ijx[i]] // de-normalize
-	}
-	er /= float64(b) * sliceMax(qi)
-
-	fmt.Printf("average flow error: %6.4f ", er)
-
-	m := make(map[string][]float64)
-	m["potential"] = hi
-	m["stream function"] = si
-	m["normal flux"] = qn
-	m["specified normal flux"] = qjj
-
-	mmplt.Line("perimeterFlux.png", sCtrl, m, 8, 3)
-
-	txtw, _ := mmio.NewTXTwriter("perimeterFlux-obs.bln")
-	for i := 0; i < b; i++ {
-		txtw.WriteLine("1")
-		txtw.WriteLine(fmt.Sprintf("%v %v", real(zobs[i]), imag(zobs[i])))
-	}
-	txtw.Close()
-}
-
-func sliceMax(s []float64) float64 {
-	x := -math.MaxFloat64
-	for _, v := range s {
-		x = math.Max(x, v)
-	}
-	return x
+// Local returns whether the point is solvable within the solution space
+func (w *WatMethSoln) Local(p *Particle) (float64, bool) {
+	zl := (complex(p.X, p.Y) - w.zc) / w.r // complex local coordinate
+	azl := cmplx.Abs(zl)                   // relative coordinate
+	return azl, azl <= 1.
 }
 
 func (w *WatMethSoln) saveControlPoints(zCtrl []complex128) {
-	txtw, _ := mmio.NewTXTwriter("controlpoints.bln")
+	txtw, _ := mmio.NewTXTwriter("surfer-controlpoints.bln")
 	for i := 0; i < w.m; i++ {
 		zCtrlGlobal := zCtrl[i]*w.r + w.zc
 		txtw.WriteLine("1")
@@ -318,7 +171,7 @@ func (w *WatMethSoln) saveControlPoints(zCtrl []complex128) {
 // ExportComplexPotentialField creates a *.csv file containing the distribution of the resulting complex potential field for viewing
 func (w *WatMethSoln) ExportComplexPotentialField(q *Prism, pointDensity int) {
 	yn, yx, xn, xx := q.getExtentsXY()
-	txtw, _ := mmio.NewTXTwriter("cell.bln")
+	txtw, _ := mmio.NewTXTwriter("surfer-cell.bln")
 	txtw.WriteLine(fmt.Sprint(len(q.Z) + 1))
 	for _, v := range q.Z {
 		txtw.WriteLine(fmt.Sprintf("%v %v", real(v), imag(v)))
@@ -326,7 +179,7 @@ func (w *WatMethSoln) ExportComplexPotentialField(q *Prism, pointDensity int) {
 	txtw.WriteLine(fmt.Sprintf("%v %v", real(q.Z[0]), imag(q.Z[0])))
 	txtw.Close()
 
-	csvw := mmio.NewCSVwriter("hs.csv")
+	csvw := mmio.NewCSVwriter("surfer-hs.csv")
 	csvw.WriteHead("x,y,h,s")
 	for i := 0; i < pointDensity; i++ {
 		fy := float64(i) / float64(pointDensity-1)

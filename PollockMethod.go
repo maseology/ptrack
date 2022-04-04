@@ -98,8 +98,8 @@ func updatePostition(s0, v0, v, a, t float64) float64 {
 	return s0 + (v*math.Exp(a*t)-v0)/a
 }
 
-// Contains returns whether the point is solvable within the solution space
-func (pm *PollockMethod) Contains(p *Particle) (float64, bool) {
+// Local returns whether the point is solvable within the solution space
+func (pm *PollockMethod) Local(p *Particle) (float64, bool) {
 	azl := cmplx.Abs(complex(p.X, p.Y)-pm.zc) / pm.r // relative coordinate
 	return azl, azl <= 1.
 }

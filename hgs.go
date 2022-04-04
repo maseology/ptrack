@@ -22,7 +22,7 @@ func ReadHGS(q_pmFP string) Domain {
 	// get prisms
 	h := structure.Read(prfx)
 	fmt.Printf(" Model structure read: %d nodes, %d elements, %d layers\n", h.Nn, h.Ne, h.Nly)
-	pset := func() PrismSet {
+	pset := func() map[int]*Prism {
 		prsms := make(map[int]*Prism, h.Ne)
 		// p1---p2   y       0---nc
 		//  | c |    |       |       clockwise, left-top-right-bottom
@@ -51,19 +51,15 @@ func ReadHGS(q_pmFP string) Domain {
 			prsms[eid].computeArea()
 		}
 
-		return PrismSet{
-			P:    prsms,
-			Conn: h.BuildTopology(),
-		}
+		return prsms
 	}()
 
 	// get flux
 	t, v := h.ReadElementalVectors(q_pmFP)
-	pflx := make(map[int]*PrismFlux)
+	pflx := make(map[int][]float64)
 	if len(v) == h.Ne {
 		for i, vv := range v {
-			pflx[i] = &PrismFlux{q: []float64{float64(vv[0]), float64(vv[1]), float64(vv[2])}} // centroid
-			// fmt.Println(i, vv)
+			pflx[i] = []float64{float64(vv[0]), float64(vv[1]), float64(vv[2])} // assumed at centroid
 		}
 	} else {
 		log.Fatalln("ReadHGS todo")
@@ -78,11 +74,11 @@ func ReadHGS(q_pmFP string) Domain {
 				ss += s[nid]
 			}
 			ss /= float64(len(nids))
-			if ss < pset.P[eid].Top {
-				if ss < pset.P[eid].Bot {
-					pset.P[eid].Bn = pset.P[eid].Bot // dry cell
+			if ss < pset[eid].Top {
+				if ss < pset[eid].Bot {
+					pset[eid].Bn = pset[eid].Bot // dry cell
 				} else {
-					pset.P[eid].Bn = ss
+					pset[eid].Bn = ss
 				}
 			}
 		}
@@ -93,6 +89,6 @@ func ReadHGS(q_pmFP string) Domain {
 	fmt.Printf(" results collected at time %f: %d vectors and %d scalars collected\n", t, len(v), len(s))
 
 	var d Domain
-	d.New(pset, pflx)
+	d.New(pset, h.BuildElementalConnectivity(false), pflx, nil)
 	return d
 }

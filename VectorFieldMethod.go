@@ -26,8 +26,8 @@ func (vm *VectorMethSoln) PointVelocity(d1 *Particle, d2 *Prism, d3 float64) (fl
 	return vm.vx, vm.vy, vm.vz
 }
 
-// Contains returns whether the point is solvable within the solution space
-func (vm *VectorMethSoln) Contains(p *Particle) (float64, bool) {
+// Local returns whether the point is solvable within the solution space
+func (vm *VectorMethSoln) Local(p *Particle) (float64, bool) {
 	azl := cmplx.Abs(complex(p.X, p.Y)-vm.zc) / vm.r // relative coordinate
 	return azl, azl <= 1.
 }
@@ -53,15 +53,15 @@ func (vm *VectorMethSoln) track(done <-chan interface{}, p *Particle, q *Prism, 
 				cv += cp
 
 				// check lateral exit
-				xe, ye := func() (float64, float64) {
+				xi, yi := func() (float64, float64) {
 					for i := range q.Z {
 						ii := (i + 1) % len(q.Z)
 						p0 := mmaths.Point{X: real(q.Z[ii]), Y: imag(q.Z[ii])}
 						p1 := mmaths.Point{X: real(q.Z[i]), Y: imag(q.Z[i])}
-						ls := mmaths.LineSegment{p0, p1}
+						ls := mmaths.LineSegment{P0: p0, P1: p1}
 						pA := mmaths.Point{X: p.X, Y: p.Y}
 						pB := mmaths.Point{X: real(cv), Y: imag(cv)}
-						pr := mmaths.LineSegment{pA, pB}
+						pr := mmaths.LineSegment{P0: pA, P1: pB}
 						xy, f := ls.Intersection2D(&pr)
 						if math.IsNaN(f) {
 							continue
@@ -70,11 +70,13 @@ func (vm *VectorMethSoln) track(done <-chan interface{}, p *Particle, q *Prism, 
 					}
 					return math.NaN(), math.NaN()
 				}()
-				d := math.Sqrt(math.Pow(xe-p.X, 2) + math.Pow(ye-p.Y, 2))
-				te := d / av
+				d := math.Sqrt(math.Pow(xi-p.X, 2) + math.Pow(yi-p.Y, 2))
+				te := d / av * 1.00001 // adding a little momentum to nudge the particle past the boundary
+				xe := p.X + vx*te
+				ye := p.Y + vy*te
+				ze := p.Z + vz*te
 
 				// check vertical exit
-				ze := p.Z + vz*te
 				if ze > q.Top {
 					tez := (q.Top - p.Z) / vz
 					// if tez < te {

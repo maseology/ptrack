@@ -14,19 +14,27 @@ import (
 
 // ReadMODFLOW reads a MODFLOW6 output file
 func ReadMODFLOW(fprfx string) Domain {
-	pset, jaxr := readGRB(fmt.Sprintf("%s.dis.grb", fprfx))
+	grbfp := fmt.Sprintf("%s.disu.grb", fprfx)
+	if _, ok := mmio.FileExists(grbfp); !ok {
+		grbfp = fmt.Sprintf("%s.dis.grb", fprfx)
+		if _, ok := mmio.FileExists(grbfp); !ok {
+			panic("ReadMODFLOW: no grb found")
+		}
+	}
+
+	pset, conn, jaxr := readGRB(grbfp)
 	fpcbc := fmt.Sprintf("%s.cbc", fprfx)
 	if _, ok := mmio.FileExists(fpcbc); !ok {
 		fpcbc = fmt.Sprintf("%s.flx", fprfx)
 	}
-	pflx := readCBC(fpcbc, jaxr)
+	pflx, pqw := readCBC(fpcbc, jaxr)
 	func() {
 		for m, v := range readDependentVariable(fmt.Sprintf("%s.hds", fprfx)) {
 			fmt.Printf("  DV: %s\n", m)
 			if m == "HEAD" {
 				for i, vv := range v {
-					if vv < pset.P[i].Top {
-						pset.P[i].Bn = vv
+					if vv < pset[i].Top {
+						pset[i].Bn = vv
 					}
 				}
 			}
@@ -34,11 +42,11 @@ func ReadMODFLOW(fprfx string) Domain {
 	}()
 
 	var d Domain
-	d.New(pset, pflx)
+	d.New(pset, conn, pflx, pqw)
 	return d
 }
 
-func readGRB(fp string) (PrismSet, map[int]jaxr) {
+func readGRB(fp string) (map[int]*Prism, map[int][]int, map[int]jaxr) {
 	buf := mmio.OpenBinary(fp)
 	var btyp, bver [50]byte
 	if err := binary.Read(buf, binary.LittleEndian, &btyp); err != nil {
@@ -57,11 +65,16 @@ func readGRB(fp string) (PrismSet, map[int]jaxr) {
 		// fmt.Println(ttyp, tver)
 		readGRBheader(buf)
 		return readGRBgrid(buf)
+	case "GRID DISU":
+		// fmt.Println(ttyp, tver)
+		readGRBheader(buf)
+		return readGRBU(buf)
 	default:
 		log.Fatalf("GRB type '%s' currently not supported", ttyp)
-		var p PrismSet
+		var p map[int]*Prism
+		var c map[int][]int
 		var jaxr map[int]jaxr
-		return p, jaxr
+		return p, c, jaxr
 	}
 }
 
@@ -95,9 +108,9 @@ func readGRBheader(b *bytes.Reader) {
 	}
 }
 
-func readGRBgrid(buf *bytes.Reader) (PrismSet, map[int]jaxr) {
+func readGRBgrid(buf *bytes.Reader) (map[int]*Prism, map[int][]int, map[int]jaxr) {
 	g := grbGridHreader{}
-	g.grbGridHread(buf)
+	g.read(buf)
 
 	delr, delc := make(map[int]float64), make(map[int]float64)
 	for j := 0; j < int(g.NCOL); j++ {
@@ -239,10 +252,151 @@ func readGRBgrid(buf *bytes.Reader) (PrismSet, map[int]jaxr) {
 	// 	fmt.Println(v)
 	// }
 
-	return PrismSet{
-		P:    prsms,
-		Conn: conn,
-	}, jaxrOut
+	return prsms, conn, jaxrOut
+}
+
+func readGRBU(buf *bytes.Reader) (map[int]*Prism, map[int][]int, map[int]jaxr) {
+	g := grbuHreader{}
+	g.read(buf)
+
+	nc := int(g.NODES)
+	top, botm := make([]float64, nc), make([]float64, nc)
+	if err := binary.Read(buf, binary.LittleEndian, top); err != nil {
+		panic(err)
+	}
+	if err := binary.Read(buf, binary.LittleEndian, botm); err != nil {
+		panic(err)
+	}
+
+	ia, ja, icelltype := make([]int32, nc+1), make([]int32, int(g.NJA)), make([]int32, nc)
+	if err := binary.Read(buf, binary.LittleEndian, ia); err != nil {
+		panic(err)
+	}
+	if err := binary.Read(buf, binary.LittleEndian, ja); err != nil {
+		panic(err)
+	}
+	if err := binary.Read(buf, binary.LittleEndian, icelltype); err != nil {
+		panic(err)
+	}
+
+	type ddd struct {
+		NVERT, NJAVERT int32
+	}
+	var dddd ddd
+	if err := binary.Read(buf, binary.LittleEndian, &dddd); err != nil {
+		panic(err)
+	}
+	fmt.Println(dddd)
+
+	// if !mmio.ReachedEOF(buf) {
+	// 	log.Fatalln("Fatal error: readGRB read 003 failed: have not reached EOF")
+	// }
+
+	// // fmt.Printf("  nl,nr,nc: %v,%v,%v; UL-origin: (%v, %v)\n", g.NLAY, g.NROW, g.NCOL, g.XORIGIN, g.YORIGIN)
+	// c, cpl, prsms := 0, nc, make(map[int]*Prism)
+	// for k := 0; k < int(g.NLAY); k++ {
+	// 	cl, o := 0, complex(g.XORIGIN, g.YORIGIN) // converted to upper-left (above)
+	// 	for i := 0; i < int(g.NROW); i++ {
+	// 		dy := -delc[i]
+	// 		for j := 0; j < int(g.NCOL); j++ {
+	// 			dx := delr[j]
+	// 			// p1---p2   y       0---nc
+	// 			//  | c |    |       |       clockwise, left-top-right-bottom
+	// 			// p0---p3   0---x   nr
+	// 			z := []complex128{o + complex(0., dy), o, o + complex(dx, 0.), o + complex(dx, dy)}
+	// 			if idomain[c] >= 0 {
+	// 				var p Prism
+	// 				if k == 0 {
+	// 					p.New(z, top[c], botm[c], top[cl], 0., defaultPorosity)
+	// 				} else {
+	// 					for kk := k - 1; kk >= 0; kk-- {
+	// 						c0 := kk*cpl + cl
+	// 						if idomain[c0] > 0 {
+	// 							p.New(z, botm[c0], botm[c], top[cl], 0., defaultPorosity)
+	// 							break
+	// 						} else if idomain[c0] == 0 {
+	// 							p.New(z, botm[c0], botm[c], botm[c0], 0., defaultPorosity)
+	// 							break
+	// 						} else if kk == 0 {
+	// 							p.New(z, top[cl], botm[c], top[cl], 0., defaultPorosity)
+	// 						}
+	// 					}
+	// 				}
+	// 				prsms[c] = &p
+	// 				// fmt.Println(c, k, i, j, p.Z, p.Top, p.Bot)
+	// 			}
+	// 			o += complex(dx, 0.)
+	// 			c++
+	// 			cl++
+	// 		}
+	// 		o = complex(g.XORIGIN, imag(o)+dy)
+	// 	}
+	// }
+
+	// conn := g.buildTopology() // make(map[int][]int)
+	// // for i := 0; i < int(g.NCELLS); i++ {
+	// // 	c1 := make([]int, ia[i+1]-ia[i])
+	// // 	for j := ia[i]; j < ia[i+1]; j++ {
+	// // 		c1[j-ia[i]] = ja[j]
+	// // 	}
+	// // 	conn[i] = c1
+	// // }
+
+	// // check connections
+	// jaxrOut, jaxrcnt := make(map[int]jaxr), 0
+	// for i := 0; i < int(g.NCELLS); i++ {
+	// 	i1, c1 := make([]int, ia[i+1]-ia[i]), make([]int, ia[i+1]-ia[i]) // MF6 order (looks to be) above-up-left-right-down-below
+	// 	for j := ia[i]; j < ia[i+1]; j++ {
+	// 		c1[j-ia[i]] = ja[j]
+	// 		i1[j-ia[i]] = j
+	// 	}
+
+	// 	connkey := make(map[int]bool) // temporary map for list checking
+	// 	for _, v := range conn[i] {
+	// 		if v >= 0 {
+	// 			connkey[v] = true
+	// 		}
+	// 	}
+	// 	if c1[0] != i {
+	// 		log.Fatalf("Fatal error: readGRB cell id check 004 failed:\nCreated: %v\nFound: %v\n", i, c1[0])
+	// 	}
+	// 	if len(c1)-1 != len(connkey) {
+	// 		log.Fatalf("Fatal error: readGRB connectivity check 005 failed, cell %d\n:\nCreated: %v\nFound: %v\n", i, conn[i], c1[1:])
+	// 	}
+	// 	for _, c := range c1[1:] {
+	// 		if !connkey[c] {
+	// 			log.Fatalf("Fatal error: readGRB connectivity check 006 failed, cell %d\n:\nCreated: %v\nFound: %v\n", i, conn[i], c1[1:])
+	// 		}
+	// 	}
+
+	// 	// fmt.Println(conn[i], c1[1:])
+	// 	for j, v := range conn[i] {
+	// 		for j2, v2 := range c1[1:] {
+	// 			if v == v2 {
+	// 				jaxrOut[jaxrcnt] = jaxr{
+	// 					f: c1[0],
+	// 					t: v,
+	// 					p: j,
+	// 					i: i1[j2+1],
+	// 				} // JA to prsm.conn cross-reference
+	// 				jaxrcnt++
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// if len(jaxrOut) != int(g.NJA-g.NCELLS) {
+	// 	log.Fatalf("Fatal error: readGRB connectivity check 007 failed, number of connections created (%d) not equal to NJA (less number of cells)\n", len(jaxrOut))
+	// }
+
+	// // fmt.Println("left-up-right-down-bottom-top")
+	// // fmt.Println("\nJAXR [from to pos ia]:")
+	// // for _, v := range jaxrOut {
+	// // 	fmt.Println(v)
+	// // }
+
+	// return prsms, conn, jaxrOut
+	return nil, nil, nil
 }
 
 func (g *grbGridHreader) buildTopology() map[int][]int {
@@ -301,7 +455,7 @@ type grbGridHreader struct {
 	XORIGIN, YORIGIN, ANGROT      float64
 }
 
-func (g *grbGridHreader) grbGridHread(b *bytes.Reader) bool {
+func (g *grbGridHreader) read(b *bytes.Reader) bool {
 	err := binary.Read(b, binary.LittleEndian, g)
 	// fmt.Println(*g)
 	if err != nil {
@@ -313,7 +467,24 @@ func (g *grbGridHreader) grbGridHread(b *bytes.Reader) bool {
 	return false
 }
 
-func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
+type grbuHreader struct {
+	NODES, NJA               int32
+	XORIGIN, YORIGIN, ANGROT float64
+}
+
+func (g *grbuHreader) read(b *bytes.Reader) bool {
+	err := binary.Read(b, binary.LittleEndian, g)
+	// fmt.Println(*g)
+	if err != nil {
+		if err == io.EOF {
+			return true
+		}
+		log.Fatalln("Fatal error: grbGridHread failed: ", err)
+	}
+	return false
+}
+
+func readCBC(fp string, jaxr map[int]jaxr) (pflx map[int][]float64, pqw map[int]float64) {
 	bflx := mmio.OpenBinary(fp)
 	dat1D := make(map[string]map[int]float64)
 	dat2D := make(map[string]map[int]map[int]float64)
@@ -379,22 +550,19 @@ func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
 		fmt.Printf("      %s\n", i)
 	}
 
-	pflx := make(map[int]*PrismFlux)
+	pflx = make(map[int][]float64)
 	if val, ok := dat1D["FLOW-JA-FACE"]; ok {
 		// fmt.Printf("\nFLOW-JA-FACE data (%d):\n", len(val))
 		for _, ja := range jaxr { // initialize
-			pflx1 := PrismFlux{
-				q:  []float64{0., 0., 0., 0., 0., 0.}, // left-up-right-down-bottom-top
-				qw: 0.,
-			}
-			pflx[ja.f] = &pflx1
+			pflx[ja.f] = []float64{0., 0., 0., 0., 0., 0.} // left-up-right-down-bottom-top
 		}
 		for _, ja := range jaxr {
 			// fmt.Printf("from %d to %d flux %v\n", ja.f, ja.t, val[ja.i])
-			pflx[ja.f].q[ja.p] = val[ja.i]
+			pflx[ja.f][ja.p] = val[ja.i]
 		}
 	}
 
+	pqw = make(map[int]float64)
 	if val, ok := dat2D["WEL"]; ok {
 		// fmt.Println("\nWEL data:")
 		for i, v := range val {
@@ -402,7 +570,7 @@ func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
 				log.Fatalln("MODFLOW CBC read error: WEL given with greater than 1 NDAT")
 			}
 			// fmt.Println(i, v[0])
-			pflx[i].qw += v[0]
+			pqw[i] += v[0]
 		}
 	}
 	if val, ok := dat2D["RCH"]; ok {
@@ -412,7 +580,7 @@ func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
 				log.Fatalln("MODFLOW CBC read error: RCH given with greater than 1 NDAT")
 			}
 			// fmt.Println(i, v[0])
-			pflx[i].q[5] = v[0]
+			pflx[i][5] = v[0]
 		}
 	}
 	if val, ok := dat2D["CHD"]; ok {
@@ -422,7 +590,7 @@ func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
 				log.Fatalln("MODFLOW CBC read error: CHD given with greater than 1 NDAT")
 			}
 			// fmt.Println(i, v[0])
-			pflx[i].qw += v[0]
+			pqw[i] += v[0]
 		}
 	}
 
@@ -431,7 +599,7 @@ func readCBC(fp string, jaxr map[int]jaxr) map[int]*PrismFlux {
 	// 	fmt.Println(i, *pflx[i])
 	// }
 
-	return pflx
+	return
 }
 
 type cbcHreader struct {

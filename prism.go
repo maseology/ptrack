@@ -6,14 +6,6 @@ import (
 	"github.com/maseology/mmaths"
 )
 
-// const prsmTol1 = .01 // distance from cell top or bottom to remain "contained"
-
-// PrismSet struct represents the model domain
-type PrismSet struct {
-	P    map[int]*Prism
-	Conn map[int][]int
-}
-
 // Prism struct represents a singular model prism
 type Prism struct {
 	Z                        []complex128
@@ -48,12 +40,12 @@ func (q *Prism) Saturation() float64 {
 	return (q.Bn - q.Bot) / (q.Top - q.Bot)
 }
 
-// Centroid returns the coordinates of the prism centroid
-func (q *Prism) Centroid() *Particle {
-	x, y := q.CentroidXY()
-	z := (q.Top - q.Bot) / 2.
-	return &Particle{X: x, Y: y, Z: z}
-}
+// // Centroid returns the coordinates of the prism centroid
+// func (q *Prism) Centroid() *Particle {
+// 	x, y := q.CentroidXY()
+// 	z := (q.Top - q.Bot) / 2.
+// 	return &Particle{X: x, Y: y, Z: z}
+// }
 
 // CentroidXY returns the coordinates of the prism centroid
 func (q *Prism) CentroidXY() (x, y float64) {
@@ -87,8 +79,6 @@ func (q *Prism) getExtentsXY() (yn, yx, xn, xx float64) {
 	}
 	return
 }
-
-const tol = 1e-10
 
 // ContainsXY returns true if the given (x,y) coordinates are contained by the prism planform bounds
 func (q *Prism) ContainsXY(x, y float64) bool {

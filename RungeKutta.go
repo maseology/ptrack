@@ -79,8 +79,7 @@ func (rk *RungeKuttaAdaptive) track(done <-chan interface{}, p *Particle, q *Pri
 }
 
 func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
-
-	if r, _ := w.Contains(p); r > rmax {
+	if r, _ := w.Local(p); r > rmax {
 		return true
 	}
 	vx, vy, vz := w.PointVelocity(p, q, 0.)
@@ -89,7 +88,7 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
 	m1 := dt * vz
 
 	p2 := Particle{0, p.X + k1/2., p.Y + l1/2., p.Z + m1/2., p.T + dt/2.}
-	if r, _ := w.Contains(&p2); r > rmax {
+	if r, _ := w.Local(&p2); r > rmax {
 		return true
 	}
 	vx, vy, vz = w.PointVelocity(&p2, q, 0.)
@@ -98,7 +97,7 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
 	m2 := dt * vz
 
 	p3 := Particle{0, p.X + k2/2., p.Y + l2/2., p.Z + m2/2., p.T + dt/2.}
-	if r, _ := w.Contains(&p3); r > rmax {
+	if r, _ := w.Local(&p3); r > rmax {
 		return true
 	}
 	vx, vy, vz = w.PointVelocity(&p3, q, 0.)
@@ -107,7 +106,7 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
 	m3 := dt * vz
 
 	p4 := Particle{0, p.X + k3, p.Y + l3, p.Z + m3, p.T + dt}
-	if r, _ := w.Contains(&p4); r > rmax {
+	if r, _ := w.Local(&p4); r > rmax {
 		return true
 	}
 	vx, vy, vz = w.PointVelocity(&p4, q, 0.)
