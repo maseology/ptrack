@@ -130,21 +130,29 @@ func (d *Domain) getExtent() (zn, zx, yn, yx, xn, xx float64) {
 
 // ParticleToPrismIDs returns a set of prisms for which a particle is located
 // position index: left-up-right-down-bottom-top
-func (d *Domain) ParticleToPrismIDs(p *Particle, prsmLast int) []int {
+func (d *Domain) ParticleToPrismIDs(p *Particle, pidFrom int) []int {
 	var pids []int
-	if prsmLast < 0 { // brute force solution
+	if pidFrom < 0 { // brute force solution
 		for i, r := range d.prsms {
 			if r.Contains(p) {
 				pids = append(pids, i)
 			}
 		}
 	} else {
-		for _, pid := range d.conn[prsmLast] {
+		if _, ok := d.conn[pidFrom]; !ok {
+			fmt.Printf("GGGGGGGGGGGGGGGG   %d\n", pidFrom)
+		}
+		for _, pid := range d.conn[pidFrom] {
 			if pid < 0 { // left-up-right-down-bottom-top
 				continue
 			}
-			if d.prsms[pid].Contains(p) {
-				pids = append(pids, pid)
+			if v, ok := d.prsms[pid]; !ok {
+				fmt.Printf("DDDDDDDDDDDDDDD   %d %d\n", pid, d.conn[pidFrom])
+				continue
+			} else {
+				if v.Contains(p) {
+					pids = append(pids, pid)
+				}
 			}
 		}
 	}

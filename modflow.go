@@ -96,7 +96,7 @@ func readGRBheader(b *bytes.Reader) {
 		log.Fatalln("Fatal error: readGRBheader read 004 failed: ", err)
 	}
 	for {
-		ln := make([]byte, lentxt, lentxt)
+		ln := make([]byte, lentxt)
 		if err := binary.Read(b, binary.LittleEndian, ln); err != nil {
 			log.Fatalln("Fatal error: readGRBheader read 005 failed: ", err)
 		}

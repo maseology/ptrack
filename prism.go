@@ -40,12 +40,12 @@ func (q *Prism) Saturation() float64 {
 	return (q.Bn - q.Bot) / (q.Top - q.Bot)
 }
 
-// // Centroid returns the coordinates of the prism centroid
-// func (q *Prism) Centroid() *Particle {
-// 	x, y := q.CentroidXY()
-// 	z := (q.Top - q.Bot) / 2.
-// 	return &Particle{X: x, Y: y, Z: z}
-// }
+// Centroid returns the coordinates of the prism centroid
+func (q *Prism) Centroid() (x, y, z float64) {
+	x, y = q.CentroidXY()
+	z = (q.Top-q.Bot)/2. + q.Bot
+	return
+}
 
 // CentroidXY returns the coordinates of the prism centroid
 func (q *Prism) CentroidXY() (x, y float64) {
@@ -56,6 +56,12 @@ func (q *Prism) CentroidXY() (x, y float64) {
 	}
 	ccxy := sc / complex(float64(c), 0.)
 	return real(ccxy), imag(ccxy)
+}
+
+// CentroidParticle returns the coordinates of the prism centroid
+func (q *Prism) CentroidParticle(i int) *Particle {
+	x, y, z := q.Centroid()
+	return &Particle{I: i, X: x, Y: y, Z: z}
 }
 
 // // CentroidXY returns the complex-coordinates (x,y)=(real,imag) of the prism centroid

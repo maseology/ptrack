@@ -6,6 +6,8 @@ import (
 	"math/cmplx"
 )
 
+const reallyBig = 9.999e100
+
 // PollockMethod is the solution to the pollock method
 // Pollock, D.W., 1989, Documentation of a computer program to compute and display pathlines using results from the U.S. Geological Survey modular three-dimensional finite-difference ground-water flow model: U.S. Geological Survey Open-File Report 89–381.
 // Pollock, D.W., 2016, User guide for MODPATH Version 7—A particle-tracking model for MODFLOW: U.S. Geological Survey Open-File Report 2016–1086, 35 p., http://dx.doi.org/10.3133/ofr20161086.
@@ -60,16 +62,16 @@ func (pm *PollockMethod) exitTime(p *Particle, vx, vy, vz float64) float64 { // 
 	texit := func(v0, v1, v, s0, s1, s, a float64) float64 {
 		// see figure 3 in Pollock, D.W., 2016, User guide for MODPATH Version 7—A particle-tracking model for MODFLOW: U.S. Geological Survey Open-File Report 2016–1086, 35 p., http://dx.doi.org/10.3133/ofr20161086.
 		if v == 0. { // case A will not exit
-			return math.MaxFloat64
+			return reallyBig
 		} else if v0 >= 0. && v1 <= 0. { // case A, will not exit
-			return math.MaxFloat64
+			return reallyBig
 		} else if v0 <= 0. && v1 >= 0 { // case B, flow divide
 			if v < 0. {
 				return math.Log(v0/v) / a
 			} else if v > 0. {
 				return math.Log(v1/v) / a
 			}
-			return math.MaxFloat64
+			return reallyBig
 		} else if v0 == v1 && v0 != 0. { // case C, constant velocity
 			if v < 0. {
 				return (s0 - s) / v
@@ -81,7 +83,7 @@ func (pm *PollockMethod) exitTime(p *Particle, vx, vy, vz float64) float64 { // 
 		} else if v > 0. {
 			return math.Log(v1/v) / a
 		}
-		return math.MaxFloat64
+		return reallyBig
 	}
 
 	txe := texit(pm.vx0, pm.vx1, vx, pm.x0, pm.x1, p.X, pm.ax)
