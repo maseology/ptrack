@@ -6,8 +6,6 @@ import (
 	"math/cmplx"
 )
 
-const reallyBig = 9.999e100
-
 // PollockMethod is the solution to the pollock method
 // Pollock, D.W., 1989, Documentation of a computer program to compute and display pathlines using results from the U.S. Geological Survey modular three-dimensional finite-difference ground-water flow model: U.S. Geological Survey Open-File Report 89–381.
 // Pollock, D.W., 2016, User guide for MODPATH Version 7—A particle-tracking model for MODFLOW: U.S. Geological Survey Open-File Report 2016–1086, 35 p., http://dx.doi.org/10.3133/ofr20161086.
@@ -93,17 +91,29 @@ func (pm *PollockMethod) exitTime(p *Particle, vx, vy, vz float64) float64 { // 
 	return math.Min(tze, math.Min(tye, txe))
 }
 
-func updatePostition(s0, v0, v, a, t float64) float64 {
+func updatePostition(s0, v0, v, a, dt float64) float64 {
 	if a == 0. {
 		return 0.
 	}
-	return s0 + (v*math.Exp(a*t)-v0)/a
+	return s0 + (v*math.Exp(a*dt)-v0)/a
 }
 
 // Local returns whether the point is solvable within the solution space
 func (pm *PollockMethod) Local(p *Particle) (float64, bool) {
 	azl := cmplx.Abs(complex(p.X, p.Y)-pm.zc) / pm.r // relative coordinate
 	return azl, azl <= 1.
+}
+
+func (pm *PollockMethod) ReverseVectorField() {
+	pm.vx0 *= -1.
+	pm.vx1 *= -1.
+	pm.vy0 *= -1.
+	pm.vy1 *= -1.
+	pm.vz0 *= -1.
+	pm.vz1 *= -1.
+	pm.ax *= -1.
+	pm.ay *= -1.
+	pm.az *= -1.
 }
 
 // track (to exit) particle through prism

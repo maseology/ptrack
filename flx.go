@@ -11,7 +11,7 @@ import (
 )
 
 // currently needs an accompanying .gdef; also not reading wells
-func ReadFLX(hstratFP, flxFP string) Domain {
+func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 
 	// get geometry
 	gd, err := grid.ReadGDEF(mmio.RemoveExtension(flxFP)+".gdef", true)
@@ -102,10 +102,16 @@ func ReadFLX(hstratFP, flxFP string) Domain {
 		q := make(map[int][]float64, len(conn))
 		for cid, cc := range conn {
 			a := make([]float64, 6) // left-up-right-down-bottom-top
-			a[0] = -qR[cc[0]]
-			a[1] = -qF[cc[1]]
-			a[2] = qR[cid]
-			a[3] = qF[cid]
+			// a[0] = -qR[cc[0]]
+			// a[1] = -qF[cc[1]]
+			// a[2] = qR[cid]
+			// a[3] = qF[cid]
+			// a[4] = qL[cid]
+			// a[5] = -qL[cc[5]]
+			a[0] = qR[cc[0]]
+			a[1] = qF[cc[1]]
+			a[2] = -qR[cid]
+			a[3] = -qF[cid]
 			a[4] = qL[cid]
 			a[5] = -qL[cc[5]]
 			q[cid] = a
@@ -115,7 +121,7 @@ func ReadFLX(hstratFP, flxFP string) Domain {
 
 	var d Domain
 	d.New(pset, conn, pflx, nil)
-	return d
+	return d, gd
 }
 
 func readMF2005(fp string, prnt bool) (qRight, qFront, qLower map[int]float64, nlay int) {

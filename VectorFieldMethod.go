@@ -9,21 +9,23 @@ import (
 
 // VectorMethSoln uses a uniform vector within a prism
 type VectorMethSoln struct {
-	zc            complex128
-	r, vx, vy, vz float64
+	zc                  complex128
+	r, vx, vy, vzt, vzb float64
 }
 
-func (vm *VectorMethSoln) New(zc complex128, q []float64, por, r float64) {
+func (vm *VectorMethSoln) New(zc complex128, q []float64, por, r float64) { // left-up-right-down-bottom-top
 	vm.zc = zc
 	vm.r = r
-	vm.vx = q[0] / por
-	vm.vy = q[1] / por
-	vm.vz = q[2] / por
+	vm.vx = (q[0] - q[2]) / 2. / por
+	vm.vy = (q[3] - q[1]) / 2. / por
+	vm.vzb = q[4] / por
+	vm.vzt = -q[5] / por
 }
 
 // PointVelocity returns the velocity vector for a given (x,y,z) coordinate
 func (vm *VectorMethSoln) PointVelocity(d1 *Particle, d2 *Prism, d3 float64) (float64, float64, float64) {
-	return vm.vx, vm.vy, vm.vz
+	x := (d1.Z - d2.Bot) / (d2.Top - d2.Bot)
+	return vm.vx, vm.vy, x*vm.vzt + (x-1.)*vm.vzb
 }
 
 // Local returns whether the point is solvable within the solution space
@@ -106,4 +108,8 @@ func (vm *VectorMethSoln) track(done <-chan interface{}, p *Particle, q *Prism, 
 		}
 	}()
 	return chout
+}
+
+func (vm *VectorMethSoln) ReverseVectorField() {
+	println("TODO VectorMethSoln.ReverseVectorField")
 }

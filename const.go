@@ -1,6 +1,7 @@
 package ptrack
 
 const (
+	reallyBig       = 9.999e100
 	mingtzero       = 1e-8
 	defaultPorosity = .3
 	tol             = 1e-10 // "contains" tolerance

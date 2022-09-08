@@ -24,6 +24,8 @@ type Domain struct {
 // Nprism returns the prisms (cells) in the domain
 func (d *Domain) Nprism() int { return len(d.prsms) }
 
+func (d *Domain) Prism(pid int) *Prism { return d.prsms[pid] }
+
 // New Domain constructor
 func (d *Domain) New(prsms map[int]*Prism, conn map[int][]int, pflxs map[int][]float64, qwell map[int]float64) {
 	d.prsms = prsms
@@ -48,6 +50,13 @@ func (d *Domain) New(prsms map[int]*Prism, conn map[int][]int, pflxs map[int][]f
 	// // d.extent = []float64{zn, zx, yn, yx, xn, xx}
 }
 
+func (d *Domain) ReverseVectorField() {
+	for k, vf := range d.VF {
+		vf.ReverseVectorField()
+		d.VF[k] = vf
+	}
+}
+
 // MakeWaterloo creates velocity field using the Waterloo Method
 func (d *Domain) MakeWaterloo(pt ParticleTracker) {
 	fmt.Println(" building Waterloo method flow field..")
@@ -70,6 +79,7 @@ func (d *Domain) MakePollock(dt float64) {
 		var pm PollockMethod
 		nf := len(d.flx[i])
 		ql, qb, qt := d.flx[i][:nf-2], d.flx[i][nf-2], d.flx[i][nf-1] // left-up-right-down-bottom-top
+		// pm.New(q, d.zw[i], ql[0], -ql[2], ql[3], -ql[1], qb, -qt, dt) // q (prism), well (assumed centroid), Qx0, Qx1, Qy0, Qy1, Qz0, Qz1,  dt
 		pm.New(q, d.zw[i], ql[0], -ql[2], ql[3], -ql[1], qb, -qt, dt) // q (prism), well (assumed centroid), Qx0, Qx1, Qy0, Qy1, Qz0, Qz1,  dt
 		d.VF[i] = &pm
 	}

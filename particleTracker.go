@@ -7,7 +7,7 @@ type ParticleTracker interface {
 
 // trackToPrismExit tracks particle to the exit point of a prism
 func trackToPrismExit(p *Particle, q *Prism, w VelocityFielder, pt ParticleTracker) [][]float64 {
-	panic("to check")
+	//panic("to check")
 	pcoll := [][]float64{p.State()}
 	done := make(chan interface{})
 	for pstate := range pt.track(done, p, q, w) {

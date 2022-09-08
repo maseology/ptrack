@@ -91,6 +91,14 @@ func (q *Prism) ContainsXY(x, y float64) bool {
 	return mmaths.PnPolyC(q.Z, complex(x, y), tol)
 }
 
+// ContainsXYZ returns true if the given (x,y) coordinates are contained by the prism planform bounds
+func (q *Prism) ContainsXYZ(x, y, z float64) bool {
+	if !mmaths.PnPolyC(q.Z, complex(x, y), tol) {
+		return false
+	}
+	return z <= q.Top && z >= q.Bot
+}
+
 // Contains returns true if the given particle is contained by the prism bounds
 func (q *Prism) Contains(p *Particle) bool {
 	if !mmaths.PnPolyC(q.Z, complex(p.X, p.Y), tol) {

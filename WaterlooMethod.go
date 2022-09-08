@@ -158,6 +158,10 @@ func (w *WatMethSoln) Local(p *Particle) (float64, bool) {
 	return azl, azl <= 1.
 }
 
+func (w *WatMethSoln) ReverseVectorField() {
+	println("TODO WatMethSoln.ReverseVectorField")
+}
+
 func (w *WatMethSoln) saveControlPoints(zCtrl []complex128) {
 	txtw, _ := mmio.NewTXTwriter("surfer-controlpoints.bln")
 	for i := 0; i < w.m; i++ {
