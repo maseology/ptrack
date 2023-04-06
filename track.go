@@ -6,8 +6,8 @@ import (
 )
 
 // Track a collection of particles through the domain
-func (d *Domain) TrackParticles(p Particles) ([][][]float64, int) {
-	o, c := make([][][]float64, len(p)), 0
+func (d *Domain) TrackParticles(p Particles) ([][]Particle, int) {
+	o, c := make([][]Particle, len(p)), 0
 	for k, pp := range p {
 		pid := d.findStartingPrism(&pp)
 		o[k] = d.trackParticle(&pp, pid)
@@ -16,16 +16,17 @@ func (d *Domain) TrackParticles(p Particles) ([][][]float64, int) {
 	return o, c
 }
 
-func (d *Domain) trackParticle(p *Particle, pid int) [][]float64 {
-	var pathline [][]float64
+func (d *Domain) trackParticle(p *Particle, pid int) []Particle {
+	var pl pathline
 
 	fmt.Printf("  >>> particle %d start point (x,y,z): %6.3f %6.3f %6.3f released in prism %d\n", p.I, p.X, p.Y, p.Z, pid)
-	d.trackRecurse(p, &pathline, pid, -1)
+	d.trackRecurse(p, &pl, pid, -1)
 
-	// pathline = pathline[:len(pathline)-1]
-	plast := pathline[len(pathline)-1]
-	fmt.Printf("\tparticle exit point  (x,y,z,t): %6.3f %6.3f %6.3f %6.3es\n", plast[0], plast[1], plast[2], plast[3])
-	return pathline
+	// pl = pl[:len(pl)-1]
+	plast := pl[len(pl)-1]
+	// fmt.Printf("\tparticle exit point  (x,y,z,t): %6.3f %6.3f %6.3f %6.3es\n", plast[0], plast[1], plast[2], plast[3])
+	fmt.Printf("\tparticle exit point  (x,y,z,t): %6.3f %6.3f %6.3f %6.3es\n", plast.X, plast.Y, plast.Z, plast.T)
+	return pl
 }
 
 func (d *Domain) findStartingPrism(p *Particle) int {

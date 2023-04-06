@@ -4,8 +4,8 @@ import (
 	"math"
 )
 
-func (pm *PollockMethod) TestTracktoExit(p *Particle, q *Prism, vf VelocityFielder) [][]float64 {
-	var aout [][]float64
+func (pm *PollockMethod) TestTracktoExit(p *Particle, q *Prism, vf VelocityFielder) []Particle {
+	var aout []Particle
 	vx, vy, vz := vf.PointVelocity(p, q, 0.)
 	te := pm.exitTime(p, vx, vy, vz) * 1.00001 // adding a little "momentum" to nudge the particle past the boundary
 	xe := updatePostition(pm.x0, pm.vx0, vx, pm.ax, te)
@@ -33,7 +33,7 @@ func (pm *PollockMethod) TestTracktoExit(p *Particle, q *Prism, vf VelocityField
 				// p.Z = pm.z0 + (vz*math.Exp(pm.az*pm.dt)-pm.vz0)/pm.az
 				p.T += pm.dt
 				// fmt.Println(p.State())
-				aout = append(aout, p.State())
+				aout = append(aout, *p)
 			}
 		}
 		p.T += te

@@ -117,8 +117,8 @@ func (pm *PollockMethod) ReverseVectorField() {
 }
 
 // track (to exit) particle through prism
-func (pm *PollockMethod) track(done <-chan interface{}, p *Particle, q *Prism, vf VelocityFielder) <-chan []float64 {
-	chout := make(chan []float64)
+func (pm *PollockMethod) track(done <-chan interface{}, p *Particle, q *Prism, vf VelocityFielder) <-chan Particle {
+	chout := make(chan Particle)
 	go func() {
 		defer close(chout)
 		for {
@@ -145,7 +145,7 @@ func (pm *PollockMethod) track(done <-chan interface{}, p *Particle, q *Prism, v
 						p.Y = updatePostition(pm.y0, pm.vy0, vy, pm.ay, pm.dt)
 						p.Z = updatePostition(pm.z0, pm.vz0, vz, pm.az, pm.dt)
 						p.T += pm.dt
-						chout <- p.State()
+						chout <- *p
 					}
 				}
 
@@ -154,7 +154,7 @@ func (pm *PollockMethod) track(done <-chan interface{}, p *Particle, q *Prism, v
 				p.Y = ye
 				p.Z = ze
 				p.T += te
-				chout <- p.State()
+				chout <- *p
 				return
 			}
 		}

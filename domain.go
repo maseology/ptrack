@@ -18,6 +18,7 @@ type Domain struct {
 	conn  map[int][]int           // prism connectivity
 	zw    map[int]complex128      // well(/point) coordinates
 	qw    map[int]float64         // well(/point) flux
+	Nly   int                     // (optional) number of layers
 	// extent []float64
 }
 
@@ -25,6 +26,8 @@ type Domain struct {
 func (d *Domain) Nprism() int { return len(d.prsms) }
 
 func (d *Domain) Prism(pid int) *Prism { return d.prsms[pid] }
+
+func (d *Domain) Prisms() map[int]*Prism { return d.prsms }
 
 // New Domain constructor
 func (d *Domain) New(prsms map[int]*Prism, conn map[int][]int, pflxs map[int][]float64, qwell map[int]float64) {
@@ -88,7 +91,7 @@ func (d *Domain) MakePollock(dt float64) {
 
 // MakeVector creates velocity field based on a uniform prism velocity vector
 func (d *Domain) MakeVector() {
-	fmt.Println(" building vector-based flow field..")
+	fmt.Println(" Building vector-based flow field..")
 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
 	for i, q := range d.prsms {
 		var vm VectorMethSoln
@@ -109,7 +112,7 @@ func (d *Domain) MakeVector() {
 // Print properties of the domain
 func (d *Domain) Print() {
 	zn, zx, yn, yx, xn, xx := d.getExtent()
-	fmt.Printf("  Nprism: %d\n  Extent X = [%.1f, %.1f]; Y = [%.1f, %.1f]; Z = [%.1f, %.1f]\n", d.Nprism(), xn, xx, yn, yx, zn, zx)
+	fmt.Printf("  Nprism: %s\n  Extent X = [%.1f, %.1f]; Y = [%.1f, %.1f]; Z = [%.1f, %.1f]\n", big(d.Nprism()), xn, xx, yn, yx, zn, zx)
 }
 
 func (d *Domain) ResetTops(v float64) {

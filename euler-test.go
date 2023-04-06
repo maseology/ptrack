@@ -6,8 +6,8 @@ import (
 )
 
 // testTrack track particle to the next space step
-func (es *EulerSpace) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) [][]float64 {
-	var aout [][]float64
+func (es *EulerSpace) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) []Particle {
+	var aout []Particle
 	nearwell := func() bool {
 		wm := w.(*WatMethSoln)
 		if !cmplx.IsNaN(wm.zwl[0]) {
@@ -30,14 +30,14 @@ func (es *EulerSpace) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) 
 		p.Y += vy * dt
 		p.Z += vz * dt
 		p.T += dt
-		aout = append(aout, p.State())
+		aout = append(aout, *p)
 	}
 	return aout
 }
 
 // testTrack track particle to the next time step
-func (et *EulerTime) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) [][]float64 {
-	var aout [][]float64
+func (et *EulerTime) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) []Particle {
+	var aout []Particle
 	nearwell := func() bool {
 		wm := w.(*WatMethSoln)
 		if !cmplx.IsNaN(wm.zwl[0]) {
@@ -59,7 +59,7 @@ func (et *EulerTime) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) [
 		p.Y += vy * et.Dt
 		p.Z += vz * et.Dt
 		p.T += et.Dt
-		aout = append(aout, p.State())
+		aout = append(aout, *p)
 	}
 	return aout
 }

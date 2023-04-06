@@ -18,22 +18,28 @@ func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 	if err != nil {
 		log.Fatalf(" ReadFLX gdef read error: %v", err)
 	}
-	fmt.Printf(" GDEF read: %d cells (%d rows, %d columns), %d actives\n", gd.Ncells(), gd.Nrow, gd.Ncol, gd.Nact)
+	fmt.Printf(" GDEF read: %s cells (%d rows, %d columns), %s actives\n", big(gd.Ncells()), gd.Nrow, gd.Ncol, big(gd.Nact))
 	hstrat, err := grid.ReadHSTRAT(hstratFP, true)
 	if err != nil {
 		log.Fatalf(" ReadFLX hstrat read error: %v", err)
 	}
 	if len(hstrat.Cells) != gd.Nact*hstrat.Nlay {
-		log.Fatalf(" ReadFLX hstrat count error: %v", err)
+		if len(hstrat.Cells) != gd.Nrow*gd.Ncol*hstrat.Nlay {
+			log.Fatalf(" ReadFLX hstrat count error, nact = %d, nlay = %d, nhs = %d", gd.Nact, hstrat.Nlay, len(hstrat.Cells))
+		}
+		print("")
 	}
+	fmt.Printf(" HSTRAT read: %s cells (%d layers), %s elements per layer\n\n", big(len(hstrat.Cells)), hstrat.Nlay, big(len(hstrat.Cells)/hstrat.Nlay))
 
 	// read flux
 	qR, qF, qL, nlay := readMF2005(flxFP, true)
-	if nlay != hstrat.Nlay {
-		log.Fatalf(" ReadFLX hstrat layer error: %v", err)
-	}
+	// if nlay != hstrat.Nlay {
+	// 	log.Fatalf(" ReadFLX hstrat layer error: %v", err)
+	// }
+	fmt.Printf("\n MODFLOW CBC read: flux across %s faces,  %d layers\n", big(len(qR)+len(qF)+len(qL)), nlay)
 
 	// build connectivity
+	fmt.Print(" building connectivity")
 	conn := func() map[int][]int {
 		c, nc := make(map[int][]int, gd.Nact*nlay), gd.Ncells()
 		ret1 := func(x, b int) int {
@@ -43,6 +49,7 @@ func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 			return x + b
 		}
 		for ly := 0; ly < nlay; ly++ {
+			print(".")
 			lync := ly * nc
 			for _, cid := range gd.Sactives {
 				lcid := cid + lync
@@ -59,21 +66,29 @@ func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 		return c
 	}()
 
+	fmt.Println("\n building prisms..")
 	pset := func() map[int]*Prism {
 		prsms := make(map[int]*Prism, gd.Nact*nlay)
 		// p1---p2   y       0---nc
 		//  | c |    |       |       clockwise, left-top-right-bottom
 		// p0---p3   0---x   nr
-		cw2, nc := gd.Cwidth/2, gd.Ncells()
+		nc := gd.Ncells()
 		for _, cid := range gd.Sactives {
-			c := gd.Coord[cid]
-			p0 := complex(c.X-cw2, c.Y-cw2)
-			p1 := complex(c.X-cw2, c.Y+cw2)
-			p2 := complex(c.X+cw2, c.Y+cw2)
-			p3 := complex(c.X+cw2, c.Y-cw2)
+			// cw2 := gd.Cwidth / 2 // uniform cells
+			// for _, cid := range gd.Sactives {
+			// 	c := gd.Coord[cid]
+			// 	p0 := complex(c.X-cw2, c.Y-cw2)
+			// 	p1 := complex(c.X-cw2, c.Y+cw2)
+			// 	p2 := complex(c.X+cw2, c.Y+cw2)
+			// 	p3 := complex(c.X+cw2, c.Y-cw2)
+			// 	zs := []complex128{p0, p1, p2, p3}
 
-			for ly := 0; ly < nlay; ly++ {
-				lcid := cid + ly*nc
+			zs := func() []complex128 {
+				p := gd.CellPerimeter(cid)
+				return []complex128{complex(p[0][0], p[0][1]), complex(p[1][0], p[1][1]), complex(p[2][0], p[2][1]), complex(p[3][0], p[3][1])}
+			}()
+			for k := 0; k < nlay; k++ {
+				lcid := cid + k*nc
 				t := float64(hstrat.Cells[lcid].Top)
 				b := float64(hstrat.Cells[lcid].Bottom)
 				// bn := t // fully saturated
@@ -83,8 +98,9 @@ func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 				} else if bn > t {
 					bn = t
 				}
+
 				prsms[lcid] = &Prism{
-					Z:   []complex128{p0, p1, p2, p3},
+					Z:   zs,
 					Top: t,
 					Bot: b,
 					Por: defaultPorosity,
@@ -98,6 +114,7 @@ func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 	}()
 
 	// get flux
+	fmt.Println(" collecting flux..")
 	pflx := func() map[int][]float64 {
 		q := make(map[int][]float64, len(conn))
 		for cid, cc := range conn {
@@ -139,26 +156,37 @@ func readMF2005(fp string, prnt bool) (qRight, qFront, qLower map[int]float64, n
 		NC := mmio.ReadInt32(bflx)
 		NR := mmio.ReadInt32(bflx)
 		NL := mmio.ReadInt32(bflx)
+		nlay = func(x32 int32) int {
+			x := int(x32)
+			if x < 0 {
+				return -x
+			}
+			return x
+		}(NL)
 
-		ICODE := mmio.ReadInt32(bflx)
-		DELTS := mmio.ReadFloat32(bflx)
-		PERTIMS := mmio.ReadFloat32(bflx)
-		TOTIMS := mmio.ReadFloat32(bflx)
-		nlay = -int(NL)
-		nc := int(-NC * NR * NL)
-		nc2 := int(NC * NR)
+		ICODE := int32(0)
+		if NL < 0 {
+			ICODE = mmio.ReadInt32(bflx)
+			DELTS := mmio.ReadFloat32(bflx)
+			PERTIMS := mmio.ReadFloat32(bflx)
+			TOTIMS := mmio.ReadFloat32(bflx)
+			_ = DELTS
+			_ = PERTIMS
+			_ = TOTIMS
+			NL = -NL
+		}
+		nc2 := int(NC) * int(NR)
+		nc3 := nc2 * nlay
 
 		txt := strings.TrimSpace(string(PNAME[:]))
 		if prnt {
-			fmt.Printf("%s: ICODE %d; KSTP %d; KPER %d; NC %d; NR %d; NL %d\n", txt, ICODE, KPER, KSTP, NC, NR, NL)
+			fmt.Printf("%15s: ICODE %d; KSTP %d; KPER %d; NC %d; NR %d; NL %d\n", txt, ICODE, KPER, KSTP, NC, NR, NL)
 		}
-		_ = DELTS
-		_ = PERTIMS
-		_ = TOTIMS
+
 		switch ICODE {
 		case 0, 1: // Read 1D array of size NDIM1*NDIM2*NDIM3
-			m1 := make(map[int]float64, nc)
-			for i := 0; i < nc; i++ {
+			m1 := make(map[int]float64, nc3)
+			for i := 0; i < nc3; i++ {
 				m1[i] = float64(mmio.ReadFloat32(bflx))
 			}
 			dat1D[txt] = m1
@@ -188,12 +216,11 @@ func readMF2005(fp string, prnt bool) (qRight, qFront, qLower map[int]float64, n
 
 		case 5: // by boundary index
 			NAUX := mmio.ReadInt32(bflx) - 1
-			if NAUX > 0 {
-				fmt.Printf("\n\tAUXTXT: ")
-			}
+			AUXTEXT := make([]string, NAUX)
 			for i := 0; i < int(NAUX); i++ {
-				AUXTEXT := mmio.ReadBytes(bflx, 16)
-				fmt.Println(strings.TrimSpace(string(AUXTEXT[:])))
+				ba := mmio.ReadBytes(bflx, 16)
+				AUXTEXT[i] = strings.TrimSpace(string(ba[:]))
+				fmt.Println("               - AUXTXT: " + AUXTEXT[i])
 			}
 
 			NLST := mmio.ReadInt32(bflx)
@@ -206,28 +233,17 @@ func readMF2005(fp string, prnt bool) (qRight, qFront, qLower map[int]float64, n
 				}
 				dat1D[txt] = m1
 			} else {
-				panic("todo")
-				// Dim xface(NLST - 1) As Single // ISTRM in SFR (see line 4220 in gwf2sfr7.f)
-				// For i = 0 To NLST - 1
-				// 	ICELL(i) = BitConverter.ToInt32(data, rec)
-				// 	VAL1(i) = BitConverter.ToSingle(data, rec + 4)
-				// 	xface(i) = BitConverter.ToSingle(data, rec + 8)
-				// 	rec += 12
-				// Next
-				// // write to grid
-				// Dim dbA(NL - 1)()() As Double
-				// For k = 0 To NL - 1
-				// 	dbA(k) = _gd.NullArray(0.0)
-				// Next
-				// For i = 0 To NLST - 1
-				// 	With _gd.CellIDToRowColLay(ICELL(i) - 1)
-				// 		dbA(.Layer)(.Row)(.Col) += CDbl(VAL1(i))
-				// 	End With
-				// Next
-				// For k = 0 To NL - 1
-				// 	_arr.Add(_arr.Count + 1, dbA(k))
-				// 	_arrname.Add(_arrname.Count + 1, String.Format("{0}_{1:000}", PNAME, k + 1))
-				// Next
+				for n := 0; n < int(NAUX); n++ {
+					xface := make([]float32, NLST) // ISTRM in SFR (see line 4220 in gwf2sfr7.f)
+					m1 := make(map[int]float64, NLST)
+					for i := 0; i < int(NLST); i++ {
+						ICELL := mmio.ReadInt32(bflx)
+						VAL1 := mmio.ReadFloat32(bflx)
+						m1[int(ICELL)] = float64(VAL1)
+						xface[i] = mmio.ReadFloat32(bflx)
+					}
+					dat1D[AUXTEXT[n]] = m1
+				}
 			}
 
 		case 6: // Read text identifiers, auxiliary text labels, and list of information.

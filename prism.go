@@ -1,6 +1,7 @@
 package ptrack
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/maseology/mmaths"
@@ -23,15 +24,28 @@ func (q *Prism) New(z []complex128, top, bot, bn, tn, porosity float64) {
 	q.computeArea()
 }
 
+// Function IsClockwise() As Boolean
+// Dim db1 As Double = 0.0
+// For i = 0 To _v.Count - 2
+// 	db1 += (_v(i + 1).X - _v(i).X) * (_v(i + 1).Y + _v(i).Y)
+// Next
+// db1 += (_v(0).X - _v.Last.X) * (_v(0).Y + _v.Last.Y)
+// Return db1 >= 0.0
+// End Function
+
 func (q *Prism) computeArea() {
-	q.A = 0.
 	nfaces := len(q.Z)
-	for j := range q.Z {
+	q.A = 0.
+	xo, yo := real(q.Z[0]), imag(q.Z[0])
+	for j, z := range q.Z {
 		jj := (j + 1) % nfaces
-		q.A += real(q.Z[j])*imag(q.Z[jj]) - real(q.Z[jj])*imag(q.Z[j])
+		q.A += (real(z)-xo)*(imag(q.Z[jj])-yo) - (real(q.Z[jj])-xo)*(imag(z)-yo)
 	}
 	q.A /= -2. // negative used here because vertices are entered in clockwise order
 	if q.A <= 0. {
+		for i, z := range q.Z {
+			fmt.Printf("%d,%f,%f\n", i+1, real(z), imag(z))
+		}
 		panic("vertex error, may be given in counter-clockwise order")
 	}
 }
@@ -61,7 +75,7 @@ func (q *Prism) CentroidXY() (x, y float64) {
 // CentroidParticle returns the coordinates of the prism centroid
 func (q *Prism) CentroidParticle(i int) *Particle {
 	x, y, z := q.Centroid()
-	return &Particle{I: i, X: x, Y: y, Z: z}
+	return &Particle{I: i, C: i, X: x, Y: y, Z: z}
 }
 
 // // CentroidXY returns the complex-coordinates (x,y)=(real,imag) of the prism centroid

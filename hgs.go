@@ -8,10 +8,6 @@ import (
 	"github.com/maseology/goHGS/structure"
 )
 
-func DirPrfx(fp string) string {
-	return fp[:strings.Index(fp, "o.")]
-}
-
 // currently reads only 1 state.
 func ReadHGS(q_pmFP string) Domain {
 	prfx := q_pmFP
@@ -56,7 +52,7 @@ func ReadHGS(q_pmFP string) Domain {
 
 	// get flux
 	t, v := h.ReadElementalVectors(q_pmFP)
-	pflx := make(map[int][]float64)
+	pflx := make(map[int][]float64, h.Ne)
 	if len(v) == h.Ne {
 		for i, vv := range v {
 			pflx[i] = []float64{float64(vv[0]), float64(vv[1]), float64(vv[2])} // assumed at centroid

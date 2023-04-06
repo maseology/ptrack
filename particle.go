@@ -10,16 +10,14 @@ type Particles []Particle
 
 // Particle struct
 type Particle struct {
-	I          int
+	I, C       int
 	X, Y, Z, T float64
 }
 
-// State returns the particles current state in CSV format
-func (p *Particle) State() []float64 {
-	return []float64{p.X, p.Y, p.Z, p.T}
-}
+// func (p *Particle) State() []float64 {
+// 	return []float64{p.X, p.Y, p.Z, p.T}
+// }
 
-// ResetState returns the particles current state in CSV format
 func (p *Particle) ResetState(s []float64) {
 	p.X = s[0]
 	p.Y = s[1]

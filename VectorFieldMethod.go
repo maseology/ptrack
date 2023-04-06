@@ -16,10 +16,20 @@ type VectorMethSoln struct {
 func (vm *VectorMethSoln) New(zc complex128, q []float64, por, r float64) { // left-up-right-down-bottom-top
 	vm.zc = zc
 	vm.r = r
-	vm.vx = (q[0] - q[2]) / 2. / por
-	vm.vy = (q[3] - q[1]) / 2. / por
-	vm.vzb = q[4] / por
-	vm.vzt = -q[5] / por
+	switch len(q) {
+	case 3:
+		vm.vx = q[0] / por
+		vm.vy = q[1] / por
+		vm.vzb = q[2] / por
+		vm.vzt = q[2] / por
+	case 6:
+		vm.vx = (q[0] - q[2]) / 2. / por
+		vm.vy = (q[3] - q[1]) / 2. / por
+		vm.vzb = q[4] / por
+		vm.vzt = -q[5] / por
+	default:
+		panic("New VectorMethSoln error")
+	}
 }
 
 // PointVelocity returns the velocity vector for a given (x,y,z) coordinate
@@ -34,8 +44,8 @@ func (vm *VectorMethSoln) Local(p *Particle) (float64, bool) {
 	return azl, azl <= 1.
 }
 
-func (vm *VectorMethSoln) track(done <-chan interface{}, p *Particle, q *Prism, vf VelocityFielder) <-chan []float64 {
-	chout := make(chan []float64)
+func (vm *VectorMethSoln) track(done <-chan interface{}, p *Particle, q *Prism, vf VelocityFielder) <-chan Particle {
+	chout := make(chan Particle)
 	go func() {
 		defer close(chout)
 		for {
@@ -102,7 +112,7 @@ func (vm *VectorMethSoln) track(done <-chan interface{}, p *Particle, q *Prism, 
 				p.Y = ye
 				p.Z = ze
 				p.T += te
-				chout <- p.State()
+				chout <- *p //.State()
 				return
 			}
 		}
@@ -111,5 +121,8 @@ func (vm *VectorMethSoln) track(done <-chan interface{}, p *Particle, q *Prism, 
 }
 
 func (vm *VectorMethSoln) ReverseVectorField() {
-	println("TODO VectorMethSoln.ReverseVectorField")
+	vm.vx *= -1.
+	vm.vy *= -1.
+	vm.vzb *= -1.
+	vm.vzt *= -1.
 }

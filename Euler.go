@@ -9,8 +9,8 @@ type EulerSpace struct{ Ds float64 }
 type EulerTime struct{ Dt float64 }
 
 // Track track particle to the next space step
-func (es *EulerSpace) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan []float64 {
-	chout := make(chan []float64)
+func (es *EulerSpace) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan Particle {
+	chout := make(chan Particle)
 	go func() {
 		defer close(chout)
 		for {
@@ -24,7 +24,7 @@ func (es *EulerSpace) track(done <-chan interface{}, p *Particle, q *Prism, w Ve
 				p.Y += vy * dt
 				p.Z += vz * dt
 				p.T += dt
-				chout <- p.State()
+				chout <- *p
 			}
 		}
 	}()
@@ -32,8 +32,8 @@ func (es *EulerSpace) track(done <-chan interface{}, p *Particle, q *Prism, w Ve
 }
 
 // Track track particle to the next time step
-func (et *EulerTime) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan []float64 {
-	chout := make(chan []float64)
+func (et *EulerTime) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan Particle {
+	chout := make(chan Particle)
 	go func() {
 		defer close(chout)
 		for {
@@ -46,7 +46,7 @@ func (et *EulerTime) track(done <-chan interface{}, p *Particle, q *Prism, w Vel
 				p.Y += vy * et.Dt
 				p.Z += vz * et.Dt
 				p.T += et.Dt
-				chout <- p.State()
+				chout <- *p
 			}
 		}
 	}()

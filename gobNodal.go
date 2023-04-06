@@ -14,7 +14,7 @@ type Vert struct {
 	VertID, PathID, PrsmID, CellID, Layer, Order, USid, DSid int
 }
 
-func (d *Domain) ExportNetworkGob(fp string, gd *grid.Definition, pl [][][]float64, xr []int) error {
+func (d *Domain) ExportGridNetworkGob(fp string, gd *grid.Definition, pl [][]Particle, xr []int) error {
 
 	// build topology
 	var nds []Vert
@@ -24,11 +24,11 @@ func (d *Domain) ExportNetworkGob(fp string, gd *grid.Definition, pl [][][]float
 		// pidlast := -1
 		for j, v := range pln {
 			pid, cid, ly := func() (int, int, int) {
-				cid := gd.PointToCellID(v[0], v[1])
+				cid := gd.PointToCellID(v.X, v.Y)
 				ly := 0
 				for {
 					if p, ok := d.prsms[cid+ly*nc]; ok {
-						if v[2] <= p.Top && v[2] >= p.Bot {
+						if v.Z <= p.Top && v.Z >= p.Bot {
 							return cid + ly*nc, cid, ly + 1
 						}
 					} else {
@@ -55,10 +55,10 @@ func (d *Domain) ExportNetworkGob(fp string, gd *grid.Definition, pl [][][]float
 			// 	return cids[0], ly
 			// }()
 			pnds[j] = Vert{
-				X:      v[0],
-				Y:      v[1],
-				Z:      v[2],
-				T:      v[3],
+				X:      v.X,
+				Y:      v.Y,
+				Z:      v.Z,
+				T:      v.T,
 				VertID: k,
 				PathID: xr[i],
 				PrsmID: pid, // the prism/cell it's in
@@ -96,7 +96,7 @@ func (d *Domain) ExportNetworkGob(fp string, gd *grid.Definition, pl [][][]float
 		}
 		// nds = append(nds, pnds...)
 	}
-	fmt.Printf(" Saving %d nodes..\n", len(nds))
+	fmt.Printf(" Saving %s nodes..\n", big(len(nds)))
 	f, err := os.Create(fp)
 	if err != nil {
 		return err

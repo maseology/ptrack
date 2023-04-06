@@ -11,8 +11,8 @@ type RungeKutta struct{ Dt float64 }
 type RungeKuttaAdaptive struct{ Ds, Dt float64 }
 
 // Track track particle to the next point
-func (rk *RungeKutta) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan []float64 {
-	chout := make(chan []float64)
+func (rk *RungeKutta) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan Particle {
+	chout := make(chan Particle)
 	go func() {
 		defer close(chout)
 		for {
@@ -21,7 +21,7 @@ func (rk *RungeKutta) track(done <-chan interface{}, p *Particle, q *Prism, w Ve
 				return
 			default:
 				trial(p, q, w, rk.Dt)
-				chout <- p.State()
+				chout <- *p
 			}
 		}
 	}()
@@ -29,8 +29,8 @@ func (rk *RungeKutta) track(done <-chan interface{}, p *Particle, q *Prism, w Ve
 }
 
 // Track track particle to the next point
-func (rk *RungeKuttaAdaptive) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan []float64 {
-	chout := make(chan []float64)
+func (rk *RungeKuttaAdaptive) track(done <-chan interface{}, p *Particle, q *Prism, w VelocityFielder) <-chan Particle {
+	chout := make(chan Particle)
 	go func() {
 		defer close(chout)
 		for {
@@ -71,7 +71,7 @@ func (rk *RungeKuttaAdaptive) track(done <-chan interface{}, p *Particle, q *Pri
 				p.Y = p0.Y
 				p.Z = p0.Z
 				p.T = p0.T
-				chout <- p.State()
+				chout <- *p
 			}
 		}
 	}()
@@ -87,7 +87,7 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
 	l1 := dt * vy
 	m1 := dt * vz
 
-	p2 := Particle{0, p.X + k1/2., p.Y + l1/2., p.Z + m1/2., p.T + dt/2.}
+	p2 := Particle{0, 0, p.X + k1/2., p.Y + l1/2., p.Z + m1/2., p.T + dt/2.}
 	if r, _ := w.Local(&p2); r > rmax {
 		return true
 	}
@@ -96,7 +96,7 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
 	l2 := dt * vy
 	m2 := dt * vz
 
-	p3 := Particle{0, p.X + k2/2., p.Y + l2/2., p.Z + m2/2., p.T + dt/2.}
+	p3 := Particle{0, 0, p.X + k2/2., p.Y + l2/2., p.Z + m2/2., p.T + dt/2.}
 	if r, _ := w.Local(&p3); r > rmax {
 		return true
 	}
@@ -105,7 +105,7 @@ func trial(p *Particle, q *Prism, w VelocityFielder, dt float64) bool {
 	l3 := dt * vy
 	m3 := dt * vz
 
-	p4 := Particle{0, p.X + k3, p.Y + l3, p.Z + m3, p.T + dt}
+	p4 := Particle{0, 0, p.X + k3, p.Y + l3, p.Z + m3, p.T + dt}
 	if r, _ := w.Local(&p4); r > rmax {
 		return true
 	}

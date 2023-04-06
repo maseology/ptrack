@@ -6,8 +6,8 @@ import (
 )
 
 // testTracktoExit track particle to the next point
-func (rk *RungeKutta) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) [][]float64 {
-	var aout [][]float64
+func (rk *RungeKutta) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) []Particle {
+	var aout []Particle
 	nearwell := func() bool {
 		wm := w.(*WatMethSoln)
 		if !cmplx.IsNaN(wm.zwl[0]) {
@@ -25,14 +25,14 @@ func (rk *RungeKutta) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) 
 			break
 		}
 		trial(p, q, w, rk.Dt)
-		aout = append(aout, p.State())
+		aout = append(aout, *p)
 	}
 	return aout
 }
 
 // testTracktoExit track particle to the next point
-func (rk *RungeKuttaAdaptive) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) [][]float64 {
-	var aout [][]float64
+func (rk *RungeKuttaAdaptive) TestTracktoExit(p *Particle, q *Prism, w VelocityFielder) []Particle {
+	var aout []Particle
 	nearwell := func() bool {
 		wm := w.(*WatMethSoln)
 		if !cmplx.IsNaN(wm.zwl[0]) {
@@ -82,7 +82,7 @@ func (rk *RungeKuttaAdaptive) TestTracktoExit(p *Particle, q *Prism, w VelocityF
 		p.Y = p0.Y
 		p.Z = p0.Z
 		p.T = p0.T
-		aout = append(aout, p.State())
+		aout = append(aout, *p)
 	}
 	return aout
 }

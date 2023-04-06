@@ -5,8 +5,8 @@ import (
 	"os"
 )
 
-func ExportPathlinesGob(fp string, pl [][][]float64, xr []int) error {
-	mp := make(map[int][][]float64, len(pl))
+func ExportPathlinesGob(fp string, pl [][]Particle, xr []int) error {
+	mp := make(map[int][]Particle, len(pl))
 	for i, pid := range xr {
 		mp[pid] = pl[i]
 	}
@@ -15,7 +15,7 @@ func ExportPathlinesGob(fp string, pl [][][]float64, xr []int) error {
 		return err
 	}
 	enc := gob.NewEncoder(f)
-	err = enc.Encode(mp)
+	err = enc.Encode(mp) // NOTE variable "toobig" altered from `const tooBig = (1 << 30) << (^uint(0) >> 62)`; to `const tooBig = (1 << 31) << (^uint(0) >> 62)` in decoder.go
 	if err != nil {
 		return err
 	}
@@ -23,8 +23,8 @@ func ExportPathlinesGob(fp string, pl [][][]float64, xr []int) error {
 	return nil
 }
 
-func LoadPathlinesGOB(fp string) (map[int][][]float64, error) {
-	var d map[int][][]float64
+func LoadPathlinesGOB(fp string) (map[int][]Particle, error) {
+	var d map[int][]Particle
 	f, err := os.Open(fp)
 	if err != nil {
 		return nil, err
