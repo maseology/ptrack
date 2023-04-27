@@ -8,7 +8,7 @@ import (
 )
 
 // currently reads only 1 state.
-func ReadHSTRAT(hstratFP string) Domain {
+func ReadHSTRAT(hstratFP string) (Domain, *mesh.Slice) {
 
 	h, err := mesh.ReadHSTRAT(hstratFP, true)
 	if err != nil {
@@ -81,9 +81,9 @@ func ReadHSTRAT(hstratFP string) Domain {
 					q[j] += h.Vxyz[nid][j]
 				}
 			}
-			fnd := float64(len(nids))
+			f := float64(h.Hgeo[eid].N) / float64(len(nids))
 			for j := 0; j < 3; j++ {
-				q[j] *= float64(h.Hgeo[eid].N) / fnd
+				q[j] *= f
 			}
 			pflx[eid] = q
 		}
@@ -96,8 +96,8 @@ func ReadHSTRAT(hstratFP string) Domain {
 	var d Domain
 	d.New(pset, h.BuildElementalConnectivity(false), pflx, nil)
 	d.Nly = h.Nly
-	return d
-
+	d.Minthick = h.MinThick
+	return d, h.TopSlice()
 }
 
 // func checkConsistentOrder(zs []complex128) {

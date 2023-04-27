@@ -138,6 +138,7 @@ func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 
 	var d Domain
 	d.New(pset, conn, pflx, nil)
+	d.Minthick = hstrat.MinThick
 	return d, gd
 }
 

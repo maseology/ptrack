@@ -41,12 +41,12 @@ func (w *WatMethSoln) New(prismID int, p *Prism, Qj []float64, zw complex128, Qt
 		log.Fatalf("cell mass-balance error in prism %d: %v\n", prismID, wbal)
 	}
 	w.zc /= complex(float64(w.nf), 0.) // cell centroid
-	w.qv = Qvert / p.A                 // Qvert = Qtop-Qbot, positive up, negative down
+	w.qv = Qvert / p.Area              // Qvert = Qtop-Qbot, positive up, negative down
 	w.qw = Qwell / 2. / math.Pi
 
 	w.buildCoefTaylor(p.Z, Qj, prnt) // (p.Z, Qj, Qvert == 0. && Qwell == 0.)
 
-	w.qb = Qbot / p.A
+	w.qb = Qbot / p.Area
 	w.zwl[0] = (zw - w.zc) / w.r // local well coordinate
 	if cmplx.IsNaN(zw) && Qwell != 0. {
 		log.Panicln("need to specify well coordinate")
@@ -143,8 +143,8 @@ func (w *WatMethSoln) PointVelocity(p *Particle, q *Prism, dbdt float64) (float6
 	if w.qw != 0. && zl != 0 {
 		o += w.cmplxVelWell(zl, 0)
 	}
-	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bl) / q.Por     // eq. 3.19 (steady-state case)
-	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.A/bz) / q.Por // eq. 3.18 (transient case)
+	// vz := (w.qb + (p.Z-q.Bot)*w.ql/q.Area/bl) / q.Por     // eq. 3.19 (steady-state case)
+	vz := (w.qb + (p.Z-q.Bot)*w.ql/q.Area/bz) / q.Por // eq. 3.18 (transient case)
 	vx := real(-o) / bl / q.Por
 	vy := imag(o) / bl / q.Por
 	// fmt.Println("  vel", vx, vy)

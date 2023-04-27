@@ -6,52 +6,20 @@ import (
 	"os"
 )
 
-func (d *Domain) ExportMeshNetworkGob(fp string, pl [][]Particle, xr []int) error {
+func (d *Domain) ExportMeshNetworkGob(fp string, pl [][]Particle, nv int) error {
 
-	// build topology
-	var nds []Vert
+	nds := make([]Vert, 0, nv)
 	nc, k := len(d.Prisms())/d.Nly, 0
-	for i, pln := range pl {
+	for _, pln := range pl {
 		pnds := make([]Vert, len(pln))
-		// pidlast := -1
 		for j, v := range pln {
-			// pid, cid, ly := func() (int, int, int) {
-			// 	eid := mh.PointToElementID(v.X, v.Y, searchradius) // SLOW
-			// 	ly := 0
-			// 	for {
-			// 		if p, ok := prsms[eid+ly*nc]; ok {
-			// 			if v.Z <= p.Top && v.Z >= p.Bot {
-			// 				return eid + ly*nc, eid, ly + 1
-			// 			}
-			// 		} else {
-			// 			break
-			// 		}
-			// 		ly++
-			// 	}
-			// 	return -1, eid, ly
-			// }()
-			// pnds[j] = Vert{
-			// 	X:      v.X,
-			// 	Y:      v.Y,
-			// 	Z:      v.Z,
-			// 	T:      v.T,
-			// 	VertID: k,
-			// 	PathID: xr[i],
-			// 	PrsmID: pid, // the prism/cell it's in
-			// 	CellID: cid, // the 2d grid cell/element it's in
-			// 	Layer:  ly,
-			// 	Order:  j,
-			// 	USid:   -1,
-			// 	DSid:   -1,
-			// }
-
 			pnds[j] = Vert{
 				X:      v.X,
 				Y:      v.Y,
 				Z:      v.Z,
 				T:      v.T,
 				VertID: k,
-				PathID: xr[i],
+				PathID: v.I,
 				PrsmID: v.C,      // the prism/cell it's in
 				CellID: v.C % nc, // the 2d grid cell/element it's in
 				Layer:  v.C/nc + 1,
@@ -88,7 +56,7 @@ func (d *Domain) ExportMeshNetworkGob(fp string, pl [][]Particle, xr []int) erro
 		// nds = append(nds, pnds...)
 	}
 
-	fmt.Printf(" Saving %s nodes..\n", big(len(nds)))
+	fmt.Printf(" saving %s nodes..\n", big(len(nds)))
 	f, err := os.Create(fp)
 	if err != nil {
 		return err
@@ -100,6 +68,5 @@ func (d *Domain) ExportMeshNetworkGob(fp string, pl [][]Particle, xr []int) erro
 	}
 	f.Close()
 
-	// mh.SaveAs(strings.TrimSuffix(fp, filepath.Ext(fp)) + ".ah2") // RemoveExtension
 	return nil
 }

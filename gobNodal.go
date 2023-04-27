@@ -14,12 +14,12 @@ type Vert struct {
 	VertID, PathID, PrsmID, CellID, Layer, Order, USid, DSid int
 }
 
-func (d *Domain) ExportGridNetworkGob(fp string, gd *grid.Definition, pl [][]Particle, xr []int) error {
+func (d *Domain) ExportGridNetworkGob(fp string, gd *grid.Definition, pl [][]Particle) error {
 
 	// build topology
 	var nds []Vert
 	nc, k := gd.Ncells(), 0
-	for i, pln := range pl {
+	for _, pln := range pl {
 		pnds := make([]Vert, len(pln))
 		// pidlast := -1
 		for j, v := range pln {
@@ -60,7 +60,7 @@ func (d *Domain) ExportGridNetworkGob(fp string, gd *grid.Definition, pl [][]Par
 				Z:      v.Z,
 				T:      v.T,
 				VertID: k,
-				PathID: xr[i],
+				PathID: v.I,
 				PrsmID: pid, // the prism/cell it's in
 				CellID: cid, // the 2d grid cell it's in
 				Layer:  ly,

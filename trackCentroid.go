@@ -6,7 +6,7 @@ import (
 )
 
 // Track a collection of particles through the centroid of at least 1 model cell
-func (d *Domain) TrackCentroidalParticles() ([][]Particle, int, []int) {
+func (d *Domain) TrackCentroidalParticles(excl map[int]bool) ([][]Particle, int, []int) {
 
 	chknan := func(a []Particle) ([]Particle, bool) {
 		rm, fxd := []int{}, false
@@ -40,8 +40,12 @@ func (d *Domain) TrackCentroidalParticles() ([][]Particle, int, []int) {
 		return a, fxd
 	}
 
-	o, pxr, c, k := make([][]Particle, d.Nprism()), make([]int, d.Nprism()), 0, 0
+	np := d.Nprism() - len(excl)
+	o, pxr, c, k := make([][]Particle, np), make([]int, np), 0, 0
 	for pid, p := range d.prsms {
+		if excl[pid] {
+			continue
+		}
 		a := d.trackParticle(p.CentroidParticle(pid), pid)
 		if x, ok := chknan(a); ok {
 			a = x

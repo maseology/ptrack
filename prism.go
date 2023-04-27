@@ -9,8 +9,8 @@ import (
 
 // Prism struct represents a singular model prism
 type Prism struct {
-	Z                        []complex128
-	Top, Bot, A, Bn, Por, Tn float64
+	Z                           []complex128
+	Top, Bot, Area, Bn, Por, Tn float64
 }
 
 // New prism constructor
@@ -35,14 +35,14 @@ func (q *Prism) New(z []complex128, top, bot, bn, tn, porosity float64) {
 
 func (q *Prism) computeArea() {
 	nfaces := len(q.Z)
-	q.A = 0.
+	q.Area = 0.
 	xo, yo := real(q.Z[0]), imag(q.Z[0])
 	for j, z := range q.Z {
 		jj := (j + 1) % nfaces
-		q.A += (real(z)-xo)*(imag(q.Z[jj])-yo) - (real(q.Z[jj])-xo)*(imag(z)-yo)
+		q.Area += (real(z)-xo)*(imag(q.Z[jj])-yo) - (real(q.Z[jj])-xo)*(imag(z)-yo)
 	}
-	q.A /= -2. // negative used here because vertices are entered in clockwise order
-	if q.A <= 0. {
+	q.Area /= -2. // negative used here because vertices are entered in clockwise order
+	if q.Area <= 0. {
 		for i, z := range q.Z {
 			fmt.Printf("%d,%f,%f\n", i+1, real(z), imag(z))
 		}

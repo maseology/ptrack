@@ -11,15 +11,15 @@ import (
 
 // Domain is a set of cells that constitute a model
 type Domain struct {
-	VF    map[int]VelocityFielder // prism velocity field
-	pt    ParticleTracker         // needed only for waterloo method
-	prsms map[int]*Prism          // prism dimensions
-	flx   map[int][]float64       // prism flux
-	conn  map[int][]int           // prism connectivity
-	zw    map[int]complex128      // well(/point) coordinates
-	qw    map[int]float64         // well(/point) flux
-	Nly   int                     // (optional) number of layers
-	// extent []float64
+	VF       map[int]VelocityFielder // prism velocity field
+	pt       ParticleTracker         // needed only for waterloo method
+	prsms    map[int]*Prism          // prism dimensions
+	flx      map[int][]float64       // prism flux
+	conn     map[int][]int           // prism connectivity
+	zw       map[int]complex128      // well(/point) coordinates
+	qw       map[int]float64         // well(/point) flux
+	Nly      int                     // (optional) number of layers
+	Minthick float64                 // "pinchout" thickness
 }
 
 // Nprism returns the prisms (cells) in the domain
