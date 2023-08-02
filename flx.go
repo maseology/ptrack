@@ -14,9 +14,12 @@ import (
 func ReadFLX(hstratFP, flxFP string) (Domain, *grid.Definition) {
 
 	// get geometry
-	gd, err := grid.ReadGDEF(mmio.RemoveExtension(flxFP)+".gdef", true)
+	gd, err := grid.ReadGDEF(mmio.RemoveExtension(hstratFP)+".gdef", true)
 	if err != nil {
-		log.Fatalf(" ReadFLX gdef read error: %v", err)
+		gd, err = grid.ReadGDEF(mmio.RemoveExtension(flxFP)+".gdef", true)
+		if err != nil {
+			log.Fatalf(" ReadFLX gdef read error: %v", err)
+		}
 	}
 	fmt.Printf(" GDEF read: %s cells (%d rows, %d columns), %s actives\n", big(gd.Ncells()), gd.Nrow, gd.Ncol, big(gd.Nact))
 	hstrat, err := grid.ReadHSTRAT(hstratFP, true)
