@@ -6,18 +6,11 @@ import (
 )
 
 // Track a collection of particles through the centroid of at least 1 model cell
-func (d *Domain) TrackCentroidalParticles(excl map[int]bool) ([][]Particle, int, []int) {
+func (d *Domain) TrackCentroidalParticles(excl map[int]bool, prnt bool) ([][]Particle, int, []int) {
 
 	chknan := func(a []Particle) ([]Particle, bool) {
 		rm, fxd := []int{}, false
 		for i, aa := range a {
-			// for _, aaa := range aa {
-			// 	if math.IsNaN(aaa) {
-			// 		fxd = true
-			// 		rm = append(rm, i)
-			// 		break
-			// 	}
-			// }
 			if math.IsNaN(aa.X) || math.IsNaN(aa.Y) || math.IsNaN(aa.Z) || math.IsNaN(aa.T) {
 				fxd = true
 				rm = append(rm, i)
@@ -46,7 +39,7 @@ func (d *Domain) TrackCentroidalParticles(excl map[int]bool) ([][]Particle, int,
 		if excl[pid] {
 			continue
 		}
-		a := d.trackParticle(p.CentroidParticle(pid), pid)
+		a := d.trackParticle(p.CentroidParticle(pid), pid, prnt)
 		if x, ok := chknan(a); ok {
 			a = x
 		}
@@ -54,16 +47,13 @@ func (d *Domain) TrackCentroidalParticles(excl map[int]bool) ([][]Particle, int,
 		pxr[k] = pid
 		c += len(o[k])
 		k++
-		// if k == 1000 {
-		// 	break
-		// }
 	}
 
 	// reverse tracks
 	println(" reversing flux filed..")
 	d.ReverseVectorField()
 	for k, pid := range pxr {
-		ar := d.trackParticle(d.prsms[pid].CentroidParticle(pid), pid)
+		ar := d.trackParticle(d.prsms[pid].CentroidParticle(pid), pid, prnt)
 		if x, ok := chknan(ar); ok {
 			ar = x
 		}
@@ -71,15 +61,10 @@ func (d *Domain) TrackCentroidalParticles(excl map[int]bool) ([][]Particle, int,
 		for i, j := 0, len(ar)-1; i < j; i, j = i+1, j-1 {
 			ar[i], ar[j] = ar[j], ar[i] // reverse array
 		}
-		// for i := 0; i < len(o); i++ {
-		// 	for j := 0; j < len(o[i]); j++ {
-		// 		o[i][j][3] = -o[i][j][3] // reverse tracking time
-		// 	}
-		// }
+		for i := range ar {
+			ar[i].T = -ar[i].T // reverse tracking time
+		}
 		o[k] = append(ar[:len(ar)-1], o[k]...)
-		// if k == 1000 {
-		// 	break
-		// }
 	}
 
 	// func() {

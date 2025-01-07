@@ -1,11 +1,11 @@
 package ptrack
 
 // Track a collection of particles through the centroid of at least 1 model cell
-func (d *Domain) TrackCentroidalParticlesReverse() ([][]Particle, int, []int) {
+func (d *Domain) TrackCentroidalParticlesReverse(prnt bool) ([][]Particle, int, []int) {
 	o, pxr, c, k := make([][]Particle, d.Nprism()), make([]int, d.Nprism()), 0, 0
 	d.ReverseVectorField()
 	for pid, p := range d.prsms {
-		o[k] = d.trackParticle(p.CentroidParticle(pid), pid)
+		o[k] = d.trackParticle(p.CentroidParticle(pid), pid, prnt)
 		pxr[k] = pid
 		c += len(o[k])
 		k++

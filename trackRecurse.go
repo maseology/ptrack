@@ -14,13 +14,15 @@ type pathline []Particle
 
 var cycl map[int]int
 
-func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int) {
+func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
 	if il < 0 {
 		cycl = map[int]int{}
 	}
 	cycl[i]++
 	if cycl[i] > 1 {
-		fmt.Printf("\ttracking aborted where particle cycle occurred at cell %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+		if prnt {
+			fmt.Printf("\ttracking aborted where particle cycle occurred at cell %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+		}
 		return
 	}
 
@@ -52,7 +54,9 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int) {
 		// fmt.Println(lpl, len(a), len(uxy))
 
 		if len(uxy) <= xuniq {
-			fmt.Printf("\tparticle has exited domain at prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n\tcycle found involving %d prisms\n", i, p.X, p.Y, p.Z, p.T, len(uxy))
+			if prnt {
+				fmt.Printf("\tparticle has exited domain at prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n\tcycle found involving %d prisms\n", i, p.X, p.Y, p.Z, p.T, len(uxy))
+			}
 			return
 		}
 	}
@@ -62,13 +66,17 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int) {
 	case *PollockMethod:
 		d.pt = d.VF[i].(*PollockMethod)              // type assertion, analytical solution (no tracking needed)
 		if v, ok := d.zw[i]; ok && !cmplx.IsNaN(v) { //!cmplx.IsNaN(d.zw[i]) {
-			fmt.Printf("\tparticle has exited domain at BC prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+			if prnt {
+				fmt.Printf("\tparticle has exited domain at BC prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+			}
 			return
 		}
 	case *VectorMethSoln:
 		d.pt = d.VF[i].(*VectorMethSoln)             // type assertion, geometrical solution (no tracking needed)
 		if v, ok := d.zw[i]; ok && !cmplx.IsNaN(v) { //!cmplx.IsNaN(d.zw[i]) {
-			fmt.Printf("\tparticle has exited domain at BC prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+			if prnt {
+				fmt.Printf("\tparticle has exited domain at BC prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+			}
 			return
 		}
 	default:
@@ -77,7 +85,9 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int) {
 			for _, zwell := range wm.zwl {
 				zl := (complex(p.X, p.Y) - wm.zc) / wm.r // complex local coordinate
 				if cmplx.Abs(zl-zwell) < wellTol/real(wm.r) {
-					fmt.Printf("\tparticle has exited by well at prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+					if prnt {
+						fmt.Printf("\tparticle has exited by well at prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
+					}
 					return
 				}
 			}
@@ -107,20 +117,26 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int) {
 	// fmt.Println(i, pids, p.X, p.Y, p.Z, p.T)
 	switch len(pids) {
 	case 0:
-		fmt.Printf("\tparticle has exited domain at prism %d\n", i)
+		if prnt {
+			fmt.Printf("\tparticle has exited domain at prism %d\n", i)
+		}
 	case 1:
 		if pids[0] == il {
 			if i == il {
 				panic("todo")
 			}
-			fmt.Printf("\ttracking aborted where particle cycle occurred between cells %d-%d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, il, p.X, p.Y, p.Z, p.T)
+			if prnt {
+				fmt.Printf("\ttracking aborted where particle cycle occurred between cells %d-%d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, il, p.X, p.Y, p.Z, p.T)
+			}
 		} else if pids[0] == i {
 			panic("todo")
 		} else {
-			d.trackRecurse(p, pl, pids[0], i)
+			d.trackRecurse(p, pl, pids[0], i, prnt)
 		}
 	default:
-		fmt.Println(" particle likely at edge/vertex")
+		if prnt {
+			fmt.Println(" particle likely at edge/vertex")
+		}
 		// selecting based on closest centroid-to-centroid trajectory
 		dsv, isv := math.MaxFloat64, -1
 		x0, y0, z0 := d.prsms[i].Centroid()
@@ -133,6 +149,6 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int) {
 				isv = i
 			}
 		}
-		d.trackRecurse(p, pl, pids[isv], i)
+		d.trackRecurse(p, pl, pids[isv], i, prnt)
 	}
 }
