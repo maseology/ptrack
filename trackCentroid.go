@@ -50,7 +50,7 @@ func (d *Domain) TrackCentroidalParticles(excl map[int]bool, prnt bool) ([][]Par
 	}
 
 	// reverse tracks
-	println(" reversing flux filed..")
+	println("  reversing flux field..")
 	d.ReverseVectorField()
 	for k, pid := range pxr {
 		ar := d.trackParticle(d.prsms[pid].CentroidParticle(pid), pid, prnt)
