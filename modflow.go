@@ -35,6 +35,8 @@ func ReadMODFLOW(fprfx string) Domain {
 				for i, vv := range v {
 					if vv < pset[i].Top {
 						pset[i].Bn = vv
+					} else {
+						pset[i].Bn = pset[i].Top
 					}
 				}
 			}

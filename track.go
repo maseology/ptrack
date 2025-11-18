@@ -21,7 +21,7 @@ func (d *Domain) trackParticle(p *Particle, pid int, prnt bool) []Particle {
 	if prnt {
 		fmt.Printf("  >>> particle %d start point (x,y,z): %6.3f %6.3f %6.3f released in prism %d\n", p.I, p.X, p.Y, p.Z, pid)
 	}
-	d.trackRecurse(p, &pl, pid, -1, prnt)
+	d.trackPrismRecurse(p, &pl, pid, -1, prnt)
 
 	// pl = pl[:len(pl)-1]
 	plast := pl[len(pl)-1]

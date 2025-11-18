@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"sort"
 	"time"
 )
@@ -48,8 +48,8 @@ func ExportVTKpathlines(filepath string, pl [][][]float64, vertExag float64) {
 	}
 
 	// write to file
-	if err := ioutil.WriteFile(filepath, buf.Bytes(), 0644); err != nil {
-		log.Fatalf("ioutil.WriteFile failed: %v", err)
+	if err := os.WriteFile(filepath, buf.Bytes(), 0644); err != nil {
+		log.Fatalf("os.WriteFile failed: %v", err)
 	}
 }
 
@@ -132,21 +132,21 @@ func (d *Domain) ExportVTK(filepath string, vertExag float64) {
 
 	// cell index
 	binary.Write(buf, endi, []byte(fmt.Sprintf("\nCELL_DATA %d\n", nprsm)))
-	binary.Write(buf, endi, []byte(fmt.Sprintf("SCALARS cellID int32\n")))
-	binary.Write(buf, endi, []byte(fmt.Sprintf("LOOKUP_TABLE default\n")))
+	binary.Write(buf, endi, []byte("SCALARS cellID int32\n"))
+	binary.Write(buf, endi, []byte("LOOKUP_TABLE default\n"))
 	for _, i := range cids {
 		binary.Write(buf, endi, int32(i))
 	}
 
 	// saturation
-	binary.Write(buf, endi, []byte(fmt.Sprintf("SCALARS saturation float\n")))
-	binary.Write(buf, endi, []byte(fmt.Sprintf("LOOKUP_TABLE default\n")))
+	binary.Write(buf, endi, []byte("SCALARS saturation float\n"))
+	binary.Write(buf, endi, []byte("LOOKUP_TABLE default\n"))
 	for _, i := range cids {
 		binary.Write(buf, endi, float32(d.prsms[i].Saturation()))
 	}
 
 	// centroid point velocity
-	binary.Write(buf, endi, []byte(fmt.Sprintf("\nVECTORS Vcentroid double\n")))
+	binary.Write(buf, endi, []byte("\nVECTORS Vcentroid double\n"))
 	for _, i := range cids {
 		q := d.prsms[i]
 		x, y := q.CentroidXY()
@@ -158,8 +158,8 @@ func (d *Domain) ExportVTK(filepath string, vertExag float64) {
 	}
 
 	// write to file
-	if err := ioutil.WriteFile(filepath, buf.Bytes(), 0644); err != nil {
-		log.Fatalf("ioutil.WriteFile failed: %v", err)
+	if err := os.WriteFile(filepath, buf.Bytes(), 0644); err != nil {
+		log.Fatalf("os.WriteFile failed: %v", err)
 	}
 }
 

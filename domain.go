@@ -20,6 +20,7 @@ type Domain struct {
 	qw       map[int]float64         // well(/point) flux
 	Nly      int                     // (optional) number of layers
 	Minthick float64                 // "pinchout" thickness
+	isrev    bool                    // vector field has been reverse
 }
 
 // Nprism returns the prisms (cells) in the domain
@@ -34,6 +35,7 @@ func (d *Domain) New(prsms map[int]*Prism, conn map[int][]int, pflxs map[int][]f
 	d.prsms = prsms
 	d.conn = conn
 	d.flx = pflxs
+	d.isrev = false
 	d.zw = make(map[int]complex128, len(qwell)) //, len(d.prsms))
 	d.qw = make(map[int]float64, len(qwell))
 	for i, q := range d.prsms {
@@ -54,6 +56,7 @@ func (d *Domain) New(prsms map[int]*Prism, conn map[int][]int, pflxs map[int][]f
 }
 
 func (d *Domain) ReverseVectorField() {
+	d.isrev = !d.isrev
 	for k, vf := range d.VF {
 		vf.ReverseVectorField()
 		d.VF[k] = vf
@@ -75,13 +78,13 @@ func (d *Domain) MakeWaterloo(pt ParticleTracker) {
 }
 
 // MakePollock creates velocity field using the Pollock (MODPATH) Method
+// much be a quadralinear domain
 func (d *Domain) MakePollock(dt float64) {
 	fmt.Println(" building Pollock method flow field..")
 	d.VF = make(map[int]VelocityFielder, len(d.prsms))
 	for i, q := range d.prsms {
 		var pm PollockMethod
-		nf := len(d.flx[i])
-		ql, qb, qt := d.flx[i][:nf-2], d.flx[i][nf-2], d.flx[i][nf-1] // left-up-right-down-bottom-top
+		ql, qb, qt := d.flx[i][:4], d.flx[i][4], d.flx[i][5] // left-up-right-down-bottom-top
 		// pm.New(q, d.zw[i], ql[0], -ql[2], ql[3], -ql[1], qb, -qt, dt) // q (prism), well (assumed centroid), Qx0, Qx1, Qy0, Qy1, Qz0, Qz1,  dt
 		pm.New(q, d.zw[i], ql[0], -ql[2], ql[3], -ql[1], qb, -qt, dt) // q (prism), well (assumed centroid), Qx0, Qx1, Qy0, Qy1, Qz0, Qz1,  dt
 		d.VF[i] = &pm
@@ -153,19 +156,35 @@ func (d *Domain) ParticleToPrismIDs(p *Particle, pidFrom int) []int {
 		}
 	} else {
 		if _, ok := d.conn[pidFrom]; !ok {
-			fmt.Printf("GGGGGGGGGGGGGGGG   %d\n", pidFrom)
+			fmt.Printf("ParticleToPrismIDs bad prism ID   %d\n", pidFrom)
 		}
 		for _, pid := range d.conn[pidFrom] {
 			if pid < 0 { // left-up-right-down-bottom-top
 				continue
 			}
 			if v, ok := d.prsms[pid]; !ok {
-				fmt.Printf("DDDDDDDDDDDDDDD   %d %d\n", pid, d.conn[pidFrom])
+				fmt.Printf("ParticleToPrismIDs bad connected prism ID   %d %d\n", pid, d.conn[pidFrom])
 				continue
 			} else {
 				if v.Contains(p) {
 					pids = append(pids, pid)
+				} else {
+					for _, cpid := range d.conn[pid] {
+						if v.Contains(p) {
+							pids = append(pids, cpid)
+						}
+					}
 				}
+			}
+		}
+	}
+
+	if len(pids) == 0 {
+		// brute force solution
+		for i, r := range d.prsms {
+			if r.Contains(p) {
+				pids = append(pids, i)
+				break
 			}
 		}
 	}

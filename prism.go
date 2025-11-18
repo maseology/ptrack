@@ -73,9 +73,38 @@ func (q *Prism) CentroidXY() (x, y float64) {
 }
 
 // CentroidParticle returns the coordinates of the prism centroid
-func (q *Prism) CentroidParticle(i int) *Particle {
+func (q *Prism) CentroidParticle(id int) *Particle {
 	x, y, z := q.Centroid()
-	return &Particle{I: i, C: i, X: x, Y: y, Z: z}
+	return &Particle{I: id, C: id, X: x, Y: y, Z: z}
+}
+
+// LateralBoxParticles
+func (q *Prism) LateralBoxParticles(nParticles, id int) Particles {
+	const offset = .01
+
+	d := int(math.Sqrt(float64(nParticles) / 4))
+	f := make([]float64, d)
+	stp := 1. / float64(d)
+	cur := stp / 2.
+	for i := range d {
+		f[i] = cur
+		cur += stp
+	}
+
+	np := d * d * 4
+	prts := make([]Particle, 0, np)
+	yn, yx, xn, xx := q.getExtentsXY()
+	for _, s := range f {
+		for _, fz := range f {
+			z := fz*(q.Top-q.Bot) + q.Bot
+			p1 := Particle{I: id, C: id, X: xn + offset, Y: s*(yx-yn) + yn, Z: z} // face 1 left
+			p2 := Particle{I: id, C: id, X: xx - offset, Y: s*(yx-yn) + yn, Z: z} // face 2 right
+			p3 := Particle{I: id, C: id, X: s*(xx-xn) + xn, Y: yn + offset, Z: z} // face 3 front
+			p4 := Particle{I: id, C: id, X: s*(xx-xn) + xn, Y: yx - offset, Z: z} // face 4 back
+			prts = append(prts, p1, p2, p3, p4)
+		}
+	}
+	return prts
 }
 
 // // CentroidXY returns the complex-coordinates (x,y)=(real,imag) of the prism centroid

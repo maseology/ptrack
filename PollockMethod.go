@@ -25,14 +25,15 @@ func (pm *PollockMethod) New(q *Prism, zwl complex128, Qx0, Qx1, Qy0, Qy1, Qz0, 
 
 	// cell dimensions ' xn:left, xx:right, yn:front, yx:back, zn:bottom, zx:top
 	yn, yx, xn, xx := q.getExtentsXY()
-	dx, dy, dz := xx-xn, yx-yn, q.Top-q.Bot
+	zh := min(q.Bn, q.Top)
+	dx, dy, dz := xx-xn, yx-yn, zh-q.Bot
 	pm.r = math.Max(dy, dx)
 	pm.x0 = xn
 	pm.y0 = yn
 	pm.z0 = q.Bot
 	pm.x1 = xx
 	pm.y1 = yx
-	pm.z1 = q.Top
+	pm.z1 = zh
 	pm.dt = dt
 
 	for _, c := range q.Z {
@@ -131,6 +132,15 @@ func (pm *PollockMethod) track(done <-chan interface{}, p *Particle, q *Prism, v
 				xe := updatePostition(pm.x0, pm.vx0, vx, pm.ax, te)
 				ye := updatePostition(pm.y0, pm.vy0, vy, pm.ay, te)
 				ze := updatePostition(pm.z0, pm.vz0, vz, pm.az, te)
+				if te > 1e10 {
+					// Particle barely moving, exit/stop point
+					p.X = xe
+					p.Y = ye
+					p.Z = ze
+					p.T += te
+					chout <- *p
+					return
+				}
 
 				// update particle locations
 				if te > pm.dt { // iterate

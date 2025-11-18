@@ -8,13 +8,13 @@ import (
 	"github.com/maseology/mmaths/vector"
 )
 
-const ncheck, xuniq, prcsn = 100, 10, .01
+const ncheck, xuniq, prcsn = 1000, 10, .01
 
 type pathline []Particle
 
 var cycl map[int]int
 
-func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
+func (d *Domain) trackPrismRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
 	if il < 0 {
 		cycl = map[int]int{}
 	}
@@ -55,7 +55,7 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
 
 		if len(uxy) <= xuniq {
 			if prnt {
-				fmt.Printf("\tparticle has exited domain at prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n\tcycle found involving %d prisms\n", i, p.X, p.Y, p.Z, p.T, len(uxy))
+				fmt.Printf("\tparticle has exited domain at prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n\t** WARNING: cycle found involving %d prisms **\n", i, p.X, p.Y, p.Z, p.T, len(uxy))
 			}
 			return
 		}
@@ -64,8 +64,8 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
 	// check for well
 	switch d.VF[i].(type) {
 	case *PollockMethod:
-		d.pt = d.VF[i].(*PollockMethod)              // type assertion, analytical solution (no tracking needed)
-		if v, ok := d.zw[i]; ok && !cmplx.IsNaN(v) { //!cmplx.IsNaN(d.zw[i]) {
+		d.pt = d.VF[i].(*PollockMethod)                          // type assertion, analytical solution (no tracking needed)
+		if v, ok := d.zw[i]; ok && !cmplx.IsNaN(v) && !d.isrev { //!cmplx.IsNaN(d.zw[i]) {
 			if prnt {
 				fmt.Printf("\tparticle has exited domain at BC prism %d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, p.X, p.Y, p.Z, p.T)
 			}
@@ -96,11 +96,10 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
 
 	// track within prism
 	plt := trackToPrismExit(p, d.prsms[i], d.VF[i], d.pt)
-	// plt := pt.(*PollockMethod).TestTracktoExit(p, d.prsms[i], d.VF[i]) //  for testing (not concurrent)
+	// // plt := pt.(*PollockMethod).TestTracktoExit(p, d.prsms[i], d.VF[i]) //  for testing (not concurrent)
 
 	if len(plt) > 2 {
 		*pl = append(*pl, plt...) // add tracks
-		panic("if never encountered, can remove this")
 	}
 
 	// func() {
@@ -129,9 +128,11 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
 				fmt.Printf("\ttracking aborted where particle cycle occurred between cells %d-%d (%6.3f,%6.3f,%6.3f,%6.3e)\n", i, il, p.X, p.Y, p.Z, p.T)
 			}
 		} else if pids[0] == i {
-			panic("todo")
+			if prnt {
+				fmt.Printf("\tparticle has exited top of water table at prism %d\n", i)
+			}
 		} else {
-			d.trackRecurse(p, pl, pids[0], i, prnt)
+			d.trackPrismRecurse(p, pl, pids[0], i, prnt)
 		}
 	default:
 		if prnt {
@@ -149,6 +150,6 @@ func (d *Domain) trackRecurse(p *Particle, pl *pathline, i, il int, prnt bool) {
 				isv = i
 			}
 		}
-		d.trackRecurse(p, pl, pids[isv], i, prnt)
+		d.trackPrismRecurse(p, pl, pids[isv], i, prnt)
 	}
 }

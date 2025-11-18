@@ -14,7 +14,7 @@ func trackToPrismExit(p *Particle, q *Prism, w VelocityFielder, pt ParticleTrack
 	for pstate := range pt.track(done, p, q, w) {
 		pcoll = append(pcoll, pstate)
 		if !q.Contains(p) {
-			break
+			break // left prism
 		}
 	}
 	close(done)
